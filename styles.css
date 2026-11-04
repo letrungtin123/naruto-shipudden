@@ -2124,3 +2124,54 @@ kbd {
   background: linear-gradient(180deg, #fff1b8 0%, #e8b04a 45%, #8a5a14 100%);
   box-shadow: 0 0 16px rgba(240, 190, 80, .7);
 }
+
+/* Susanoo status chip (O) */
+#susanooStatus {
+  position: relative;
+  width: max-content;
+  max-width: 100%;
+  margin: 5px 0 0 6px;
+  padding: 5px 10px 5px 47px;
+  color: #b9aacc;
+  background: linear-gradient(90deg, rgba(20, 12, 34, .9), rgba(20, 12, 34, .7));
+  border: 1px solid rgba(170, 120, 255, .45);
+  border-radius: 3px;
+  font: 600 11px/1.2 var(--font-head);
+  letter-spacing: .08em;
+  text-shadow: 1px 1px 2px #000;
+  transition: color .15s, border-color .15s, box-shadow .15s, background .15s;
+}
+#susanooStatus::before {
+  content: '須佐';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-jp);
+  font-size: 11px;
+  letter-spacing: 0;
+  color: rgba(190, 150, 255, .55);
+}
+#susanooStatus.active {
+  color: #f8f0ff;
+  background: linear-gradient(90deg, #12081f, #5a2a9a 60%, #b98cff);
+  border-color: #eadcff;
+  box-shadow: 0 0 18px rgba(170, 110, 255, .7), inset 0 0 12px rgba(240, 225, 255, .3);
+  animation: susanoo-pulse 1.2s ease-in-out infinite alternate;
+}
+#susanooStatus.active::before { color: #fff; text-shadow: 0 0 6px #a86bff; }
+@keyframes susanoo-pulse {
+  from { box-shadow: 0 0 10px rgba(150, 90, 255, .5), inset 0 0 10px rgba(240, 225, 255, .25); }
+  to   { box-shadow: 0 0 26px rgba(180, 120, 255, .95), inset 0 0 14px rgba(240, 225, 255, .45); }
+}
+.controls-grid .susanoo-control {
+  --tone: #a86bff;
+  grid-column: span 2;
+  color: #f8f0ff;
+  background: linear-gradient(90deg, #160b26, #5a2a9a 60%, rgba(170, 120, 255, .55));
+  border-color: #0e0618;
+  font-weight: 700;
+}
+.controls-grid .susanoo-control kbd { border-bottom-color: #d4b8ff; }
+@media (min-width: 1700px) { #susanooStatus { font-size: 12px; } }
+@media (max-width: 440px) { #susanooStatus { font-size: 9px; letter-spacing: .02em; padding: 4px 7px 4px 36px; } #susanooStatus::before { font-size: 9px; } }

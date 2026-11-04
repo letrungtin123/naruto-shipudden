@@ -17,6 +17,7 @@
     prompt: document.getElementById('prompt'), toast: document.getElementById('toast'),
     nineTailsStatus: document.getElementById('nineTailsStatus'), gatesStatus: document.getElementById('gatesStatus'),
     rinneganStatus: document.getElementById('rinneganStatus'), sixPathsStatus: document.getElementById('sixPathsStatus'),
+    susanooStatus: document.getElementById('susanooStatus'),
     skillB: document.getElementById('skillB'),
     skillBar: document.getElementById('skillBar'), skillG: document.getElementById('skillG'),
     skillE: document.getElementById('skillE'), skillV: document.getElementById('skillV'), skillH: document.getElementById('skillH'),
@@ -55,7 +56,7 @@
   // `player` to whichever teammate an enemy is fighting; it is `me` everywhere else.
   const me = {
     x: 75, y: 420, r: 13, angle: 0, health: 100, maxHealth: 100, armor: 35, score: 0, kills: 0,
-    speed: 0, weapon: 'staff', fireCooldown: 0, invuln: 0, nineTails: false, gates: false, punch: 0, punchCount: 0, rinnegan: false, rinPulse: 0, rinCount: 0, bCount: 0, sixPaths: false, spLift: 0, spCount: 0, clickMode: null,
+    speed: 0, weapon: 'staff', fireCooldown: 0, invuln: 0, nineTails: false, gates: false, punch: 0, punchCount: 0, rinnegan: false, rinPulse: 0, rinCount: 0, bCount: 0, sixPaths: false, spLift: 0, spCount: 0, susanoo: false, suCount: 0, clickMode: null,
     flash: 0, swing: 0, swingAngle: 0, castPose: 0, stride: 0, down: 0
   };
   let player = me;
@@ -72,6 +73,8 @@
   const destructionState = { ruins: [], scars: [], view: null };
   const MAX_GROUND_SCARS = 110;
   const BOSS_POWER_MULTIPLIER = 5;
+  // Every enemy hits harder and takes more to bring down than its base stats.
+  const ENEMY_HP_POWER = 1.8, ENEMY_DAMAGE_POWER = 1.5;
   const BARYON_DAMAGE_MULTIPLIER = 2.4;
   // Eight Gates mode (Y).
   const GATES_SPEED = 1.85, GATES_PUNCH_INTERVAL = .2, GATES_PUNCH_DAMAGE = 380, GATES_HEALTH = 30, GATES_REGEN = .03;
@@ -85,7 +88,9 @@
   const RANBU = { range: 650, rings: [[0, 1], [240, 6], [470, 10]], radius: 130, damage: 1050, step: .03, life: 1.6 };
   const YAGAI = { range: 1050, path: 150, radius: 620, damage: 5400 };
   // Six Paths mode (I): its jutsu live in six-paths-mode.js.
-  const SIXPATHS_HEALTH = 50, SIXPATHS_REGEN = .025, SIXPATHS_SPEED = 1.5;
+  const SIXPATHS_HEALTH = 100, SIXPATHS_REGEN = .025, SIXPATHS_SPEED = 2.3;
+  // Susanoo mode (O): its jutsu live in susanoo-mode.js. The ribcage and armour soak most of every hit.
+  const SUSANOO_HEALTH = 40, SUSANOO_REGEN = .02, SUSANOO_GUARD = .35;
   // Rinnegan mode (U).
   const RINNEGAN_HEALTH = 20, RINNEGAN_REGEN = .02, SHINRA_RADIUS = 320, BANSHO_RANGE = 620, BANSHO_RADIUS = 190;
   const CHIBAKU_RADIUS = 300, CHIBAKU_LIFE = 3.4, CHIBAKU_RANGE = 560, GAKIDO_RADIUS = 85;
@@ -131,6 +136,7 @@
   // Six Paths mode (I) and the summoned Sasuke (B). Both must stay plain JSON: they are sent to co-op teammates.
   const sixPathsState = { effects: [] };
   const indraState = { ally: null, effects: [] };
+  const susanooState = { effects: [] };
   const hokageState = { allies: [], effects: [] };
   const skillEffectLimits = { fireballs: 12, fireSeas: 3, tags: 24, beastBombs: 4, rasenShurikens: 6,
     clones: 8, summons: 1, trails: 32, vortices: 4, explosions: 16 };
@@ -162,11 +168,12 @@
     taki_ninja: { name: 'Ninja Làng Thác Nước', hp: 580, speed: 135, damage: 30, radius: 17, score: 500, color: '#4f8f86', style: 'taki', jutsu: 'kiri', fallback: 'walker' },
     kusa_ninja: { name: 'Ninja Làng Cỏ', hp: 520, speed: 155, damage: 28, radius: 17, score: 480, color: '#6f9a4a', style: 'kusa', jutsu: 'iwa', fallback: 'runner' },
     zetsu_white: { name: 'Bạch Zetsu', hp: 150, speed: 128, damage: 16, radius: 16, score: 140, color: '#e6e4da', fallback: 'walker' },
+    konoha_ninja: { name: 'Ninja Làng Lá', hp: 760, speed: 150, damage: 36, radius: 17, score: 650, color: '#5d7a3b', style: 'konoha', fallback: 'walker' },
     yu_ninja: { name: 'Ninja Làng Suối Nóng', hp: 600, speed: 130, damage: 32, radius: 18, score: 520, color: '#b0664a', style: 'yu', jutsu: 'kumo', fallback: 'brute' }
   };
-  const VILLAGE_NINJA = { suna: 'suna_ninja', kiri: 'kiri_ninja', kumo: 'kumo_ninja', iwa: 'iwa_ninja',
+  const VILLAGE_NINJA = { konoha: 'konoha_ninja', suna: 'suna_ninja', kiri: 'kiri_ninja', kumo: 'kumo_ninja', iwa: 'iwa_ninja',
     ame: 'ame_ninja', oto: 'oto_ninja', taki: 'taki_ninja', kusa: 'kusa_ninja', yu: 'yu_ninja' };
-  const STYLE_ACCENT = { suna: '#e0b46a', kiri: '#7fd0ff', kumo: '#ffe45a', iwa: '#c8956a',
+  const STYLE_ACCENT = { konoha: '#8fd062', suna: '#e0b46a', kiri: '#7fd0ff', kumo: '#ffe45a', iwa: '#c8956a',
     ame: '#9fb4d8', oto: '#b58aff', taki: '#6fe0c8', kusa: '#9fe06a', yu: '#ff9a6a' };
   // Minor villages have no Kage; an Akatsuki member born there answers the alarm instead.
   const VILLAGE_LEADER = { ame: 'pain', taki: 'kakuzu', yu: 'hidan' };
@@ -174,7 +181,8 @@
   function bossModuleFor(faction) {
     return faction === 'otsutsuki' ? window.OtsutsukiBosses : faction === 'kage' ? window.KageBosses
       : faction === 'madara' ? window.MadaraBosses : faction === 'sannin' ? window.SanninBosses
-      : faction === 'hokage' ? window.HokageBosses : faction === 'legend' ? window.LegendBosses : window.AkatsukiBosses;
+      : faction === 'hokage' ? window.HokageBosses : faction === 'legend' ? window.LegendBosses
+      : faction === 'bee' ? window.KillerBeeBoss : faction === 'nagato' ? window.NagatoBoss : window.AkatsukiBosses;
   }
   function bossModuleOf(z) {
     if (!z || z.type !== 'boss' || !z.bossId) return null;
@@ -243,6 +251,7 @@
       if (!konohaWorld.buildingGrid[cx]) konohaWorld.buildingGrid[cx] = [];
       konohaWorld.buildingGrid[cx][cy] = b;
       konohaWorld.buildings.push(b);
+      b.village = 'konoha';
     }
     window.KonohaWorld.init(konohaWorld);
     for (const l of konohaWorld.lanterns) lanterns.push({ x: l.x + KONOHA.x, y: l.y + KONOHA.y });
@@ -268,7 +277,7 @@
     player = me;
     // Co-op teammates start side by side at the village's west road.
     Object.assign(me, { x: START.x, y: START.y + (net.role === 'solo' ? 0 : net.slot * 34), health: 100, maxHealth: 100, armor: 35, score: 0, kills: 0,
-      speed: 0, weapon: 'staff', fireCooldown: 0, invuln: 1, nineTails: false, gates: false, punch: 0, punchCount: 0, rinnegan: false, rinPulse: 0, rinCount: 0, bCount: 0, sixPaths: false, spLift: 0, spCount: 0, clickMode: null,
+      speed: 0, weapon: 'staff', fireCooldown: 0, invuln: 1, nineTails: false, gates: false, punch: 0, punchCount: 0, rinnegan: false, rinPulse: 0, rinCount: 0, bCount: 0, sixPaths: false, spLift: 0, spCount: 0, susanoo: false, suCount: 0, clickMode: null,
       flash: 0, swing: 0, swingAngle: 0, castPose: 0, stride: 0, down: 0 });
     net.hits.clear(); net.impacts.length = 0; net.hostile.length = 0; net.fx.length = 0;
     net.proxies.clear(); net.over = false;
@@ -290,6 +299,8 @@
     for (const k of Object.keys(sixPathsState)) delete sixPathsState[k];
     sixPathsState.effects = [];
     indraState.ally = null; indraState.effects.length = 0;
+    for (const k of Object.keys(susanooState)) delete susanooState[k];
+    susanooState.effects = [];
     endWar(true);
     destructionState.ruins.length = destructionState.scars.length = 0;
     destructionState.view = null;
@@ -411,6 +422,7 @@
     if (player.gates) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * GATES_REGEN * dt);
     if (player.rinnegan) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * RINNEGAN_REGEN * dt);
     if (player.sixPaths) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * SIXPATHS_REGEN * dt);
+    if (player.susanoo) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * SUSANOO_REGEN * dt);
     // In co-op the match keeps running behind the pause menu and big map, without input.
     const input = !paused && !largeMap;
     if (player.leap) { updateLeap(dt); return; }
@@ -442,6 +454,7 @@
     player.fireCooldown = weapon.interval * (player.nineTails ? .65 : 1);
     const mode = clickMode(player);
     if (mode === 'sixpaths') { window.SixPathsMode?.click(sixPathsState, player, heroApi()); return; }
+    if (mode === 'susanoo') { window.SusanooMode?.click(susanooState, player, heroApi()); return; }
     if (mode === 'rinnegan') { rinneganCast(); return; }
     if (mode === 'gates') { gatesPunch(); return; }
     if (mode === 'baryon') { baryonCast(); return; }
@@ -679,9 +692,9 @@
 
   // The newest mode switched on owns left click; when it is switched off, an older one takes over.
   function clickMode(p) {
-    const on = { baryon: p.nineTails, gates: p.gates, rinnegan: p.rinnegan, sixpaths: p.sixPaths };
+    const on = { baryon: p.nineTails, gates: p.gates, rinnegan: p.rinnegan, sixpaths: p.sixPaths, susanoo: p.susanoo };
     if (p.clickMode && on[p.clickMode]) return p.clickMode;
-    return p.sixPaths ? 'sixpaths' : p.rinnegan ? 'rinnegan' : p.gates ? 'gates' : p.nineTails ? 'baryon' : null;
+    return p.susanoo ? 'susanoo' : p.sixPaths ? 'sixpaths' : p.rinnegan ? 'rinnegan' : p.gates ? 'gates' : p.nineTails ? 'baryon' : null;
   }
 
   // What the Six Paths mode and the summoned Sasuke may do to enemies and the world (never to teammates).
@@ -967,7 +980,7 @@
 
   // Baryon (×100), the Eight Gates (×30), the Rinnegan (×20) and Six Paths (×50) each multiply max health; current health keeps its ratio.
   function rescaleMaxHealth() {
-    const max = 100 * (player.nineTails ? 100 : 1) * (player.gates ? GATES_HEALTH : 1) * (player.rinnegan ? RINNEGAN_HEALTH : 1) * (player.sixPaths ? SIXPATHS_HEALTH : 1);
+    const max = 100 * (player.nineTails ? 100 : 1) * (player.gates ? GATES_HEALTH : 1) * (player.rinnegan ? RINNEGAN_HEALTH : 1) * (player.sixPaths ? SIXPATHS_HEALTH : 1) * (player.susanoo ? SUSANOO_HEALTH : 1);
     player.health = Math.min(max, player.health * max / (player.maxHealth || 100));
     player.maxHealth = max;
   }
@@ -996,6 +1009,17 @@
     window.SixPathsMode?.toggle(sixPathsState, player, player.sixPaths, heroApi());
     player.castPose = .4; player.castFrame = 'seal';
     paintPortrait();
+    updateHUD();
+  }
+
+  // Susanoo (O): a violet chakra giant forms around Naruto; left click becomes Susanoo jutsu.
+  function toggleSusanoo() {
+    player.susanoo = !player.susanoo;
+    player.fireCooldown = 0; player.suCount = 0;
+    if (player.susanoo) player.clickMode = 'susanoo';
+    rescaleMaxHealth();
+    window.SusanooMode?.toggle(susanooState, player, player.susanoo, heroApi());
+    player.castPose = .4; player.castFrame = 'seal';
     updateHUD();
   }
 
@@ -2026,6 +2050,7 @@
     updateBaryon(dt);
     window.SixPathsMode?.update(sixPathsState, me, dt, heroApi());
     window.SasukeIndra?.update(indraState, dt, heroApi());
+    window.SusanooMode?.update(susanooState, me, dt, heroApi());
     updateFireSeas(dt);
     updateTags(dt);
     updateHokageSquad(dt);
@@ -2191,9 +2216,9 @@
     const scale = type === 'boss' ? 1 + Math.max(0, Math.floor((level - 2) / 3)) * .28
       : type === 'beast' ? (1 + tails * .15) * (1 + (level - 1) * .2)
       : 1 + Math.floor((level - 1) / 4) * .12;
-    const maxHealth = Math.round(spec.hp * scale * (member?.hpScale || 1) * (type === 'boss' ? BOSS_POWER_MULTIPLIER : 1));
+    const maxHealth = Math.round(spec.hp * scale * (member?.hpScale || 1) * (type === 'boss' ? BOSS_POWER_MULTIPLIER : 1) * ENEMY_HP_POWER);
     const z = { id: ++nextZombieId, type, bossId, bossFaction, beastId, x, y, r: spec.radius, health: maxHealth, maxHealth,
-      damage: spec.damage * (member?.damageScale || 1) * (type === 'boss' ? BOSS_POWER_MULTIPLIER : 1),
+      damage: spec.damage * (member?.damageScale || 1) * (type === 'boss' ? BOSS_POWER_MULTIPLIER : 1) * ENEMY_DAMAGE_POWER,
       angle: 0, color: spec.color, attackTimer: rand(.1, .6), spitTimer: rand(1, 2), pulse: rand(0, 6), deathTimer: 0,
       stuck: 0, sidestep: Math.random() < .5 ? -1 : 1, chargeTimer: rand(2.8, 4.2), skillWindup: 0,
       skillKind: '', dashTimer: 0, dashAngle: 0,
@@ -2252,7 +2277,7 @@
     for (let batch = 0; spawnQueue.length && alive < MAX_ALIVE && batch < 8; batch++, alive++) {
       const entry = spawnQueue.shift();
       const z = spawnZombie(entry.type, entry);
-      if (z && entry.alert) villageAlert[entry.alert].kage = z;
+      if (entry.alert) villageAlert[entry.alert].leaders[entry.id] = z || null;
     }
   }
 
@@ -2269,25 +2294,36 @@
 
   // Wrecking a house in another hidden village brings its ninjas — and its Kage — after you.
   function villageAlarm(id, b) {
-    const alert = villageAlert[id] || (villageAlert[id] = { houses: 0, kage: null });
+    const alert = villageAlert[id] || (villageAlert[id] = { houses: 0, leaders: {} });
     alert.houses++;
     const first = alert.houses === 1;
     const at = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-    for (let i = 0; i < (first ? 16 : 5); i++) spawnQueue.push({ type: VILLAGE_NINJA[id], at });
-    const kageId = window.KageBosses?.byVillage?.[id] || (window.AkatsukiBosses && VILLAGE_LEADER[id]);
-    const faction = window.KageBosses?.byVillage?.[id] ? 'kage' : 'akatsuki';
-    const kageDown = !alert.kage || alert.kage.health <= 0 || !zombies.includes(alert.kage);
-    if (kageId && kageDown && (first || alert.houses % 5 === 0)) {
-      spawnQueue.unshift({ type: 'boss', faction, id: kageId, at, alert: id });
-      const kage = (faction === 'kage' ? window.KageBosses : window.AkatsukiBosses).members[kageId].name;
-      const village = villageLabel(id);
-      showToast(`${village} BÁO ĐỘNG! ${kage} XUẤT HIỆN!`, 3.2);
-      if (coop()) netSend({ t: 'toast', text: `${village} BÁO ĐỘNG! ${kage} XUẤT HIỆN!` });
-    } else if (first) showToast(`${villageLabel(id)} BÁO ĐỘNG!`, 2.4);
+    for (let i = 0; i < (first ? 40 : 14); i++) spawnQueue.push({ type: VILLAGE_NINJA[id], at });
+    // Konoha sends every Hokage; a great village its Kage; a minor one the Akatsuki member born there.
+    const H = window.HokageBosses, K = window.KageBosses, A = window.AkatsukiBosses;
+    const leaders = id === 'konoha' ? (H?.order || []).map(lid => ['hokage', lid, H.members[lid].name])
+      : K?.byVillage?.[id] ? [['kage', K.byVillage[id], K.members[K.byVillage[id]].name]]
+      : A && VILLAGE_LEADER[id] ? [['akatsuki', VILLAGE_LEADER[id], A.members[VILLAGE_LEADER[id]].name]] : [];
+    // A leader still queued counts as present, so one alarm never sends the same Kage twice.
+    const absent = lid => { const z = alert.leaders[lid]; return z !== 'queued' && (!z || z.health <= 0 || !zombies.includes(z)); };
+    const called = first || alert.houses % 4 === 0 ? leaders.filter(([, lid]) => absent(lid)) : [];
+    called.forEach(([faction, lid], i) => {
+      const a = i / called.length * Math.PI * 2;
+      const spot = called.length > 1 ? { x: at.x + Math.cos(a) * 170, y: at.y + Math.sin(a) * 120 } : at;
+      alert.leaders[lid] = 'queued';
+      spawnQueue.splice(i, 0, { type: 'boss', faction, id: lid, at: spot, alert: id });
+    });
+    const village = villageLabel(id);
+    if (called.length) {
+      const who = id === 'konoha' && called.length > 2 ? 'CÁC ĐỜI HOKAGE' : called.map(c => c[2]).join(', ');
+      showToast(`${village} BÁO ĐỘNG! ${who} XUẤT HIỆN!`, 3.2);
+      if (coop()) netSend({ t: 'toast', text: `${village} BÁO ĐỘNG! ${who} XUẤT HIỆN!` });
+    } else if (first) showToast(`${village} BÁO ĐỘNG!`, 2.4);
   }
 
   function clearEnemies() {
     zombies.length = 0; bullets.length = 0; spawnQueue.length = 0;
+    for (const a of Object.values(villageAlert)) for (const k in a.leaders) if (a.leaders[k] === 'queued') a.leaders[k] = null;
     waveState.boss = null;
     enemyBuckets.clear();
   }
@@ -2477,7 +2513,7 @@
   const GRUNT_FX_CAP = 36;
   const GRUNT_SIGS = {
     walker: ['kunaiRain', 'tagKunai'], runner: ['raiBeam'], brute: ['earthSpikes'], spitter: ['fireDragon', 'greatFireball'],
-    suna: ['windCone', 'sandBind'], kiri: ['waterDragon', 'waterWave'], kumo: ['boltRain', 'raiBeam'], iwa: ['boulder', 'spikeRing'],
+    konoha: ['greatFireball', 'tagKunai', 'fireDragon'], suna: ['windCone', 'sandBind'], kiri: ['waterDragon', 'waterWave'], kumo: ['boltRain', 'raiBeam'], iwa: ['boulder', 'spikeRing'],
     ame: ['needleRain'], oto: ['soundWave'], taki: ['waterfall'], kusa: ['thorns'], yu: ['geysers']
   };
   const GRUNT_LABELS = {
@@ -2914,6 +2950,7 @@
       bloodBurst(player.x, player.y, rand(0, Math.PI * 2), 5);
       return;
     }
+    if (player.susanoo) amount *= SUSANOO_GUARD;
     if (player.armor > 0) { const used = Math.min(player.armor, amount); player.armor -= used; amount -= used; }
     player.health = Math.max(0, player.health - amount);
     if (amount > 0) { bloodBurst(player.x, player.y, rand(0, Math.PI * 2), 5); addBloodDecal(player.x, player.y, 6); }
@@ -3015,6 +3052,10 @@
       setText(ui.sixPathsStatus, player.sixPaths ? 'I · LỤC ĐẠO TIÊN NHÂN: BẬT' : 'I · LỤC ĐẠO TIÊN NHÂN: TẮT');
       ui.sixPathsStatus.classList.toggle('active', !!player.sixPaths);
     }
+    if (ui.susanooStatus) {
+      setText(ui.susanooStatus, player.susanoo ? 'O · SUSANOO: BẬT' : 'O · SUSANOO: TẮT');
+      ui.susanooStatus.classList.toggle('active', !!player.susanoo);
+    }
     if (ui.skillB) ui.skillB.classList.toggle('active', !!indraState.ally);
     if (ui.skillV) ui.skillV.classList.toggle('active', !!mightGuyState.ally);
     if (ui.skillH) ui.skillH.classList.toggle('active', hokageState.allies.length === 4);
@@ -3063,7 +3104,8 @@
     ui.bossBar.classList.toggle('beast', !!boss && boss.type === 'beast');
     ui.bossBar.classList.toggle('kage', !!boss && boss.bossFaction === 'kage');
     ui.bossBar.classList.toggle('madara', !!boss && boss.bossFaction === 'madara');
-    for (const f of ['sannin', 'hokage', 'legend']) ui.bossBar.classList.toggle(f, !!boss && boss.bossFaction === f);
+    const barFaction = { bee: 'legend', nagato: 'legend' }[boss?.bossFaction] || boss?.bossFaction;
+    for (const f of ['sannin', 'hokage', 'legend']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
     if (boss) {
       const module = boss.type === 'beast' ? window.TailedBeasts : bossModuleOf(boss);
       const member = module?.members?.[boss.type === 'beast' ? boss.beastId : boss.bossId];
@@ -3178,6 +3220,7 @@
     if (p.gates) S.drawGatesAura(ctx, p.x, feetY, facing, elapsed, 1.05, gatePunch);
     if (p.rinnegan && window.RinneganVFX) window.RinneganVFX.drawAura(ctx, p, feetY, facing, elapsed, false);
     if (p.sixPaths) window.SixPathsMode?.drawAura(ctx, p, feetY, facing, elapsed, false);
+    if (p.susanoo) window.SusanooMode?.drawAura(ctx, p, feetY, facing, elapsed, false);
     const bareHands = !!clickMode(p);
     const weaponBehind = Math.sin(p.angle) < -.45;
     if (weaponBehind && !bareHands) drawHeldWeapon(facing, n.firing);
@@ -3187,6 +3230,7 @@
     if (p.gates) S.drawGatesAura(ctx, p.x, feetY, facing, elapsed, 1.05, gatePunch, true);
     if (p.rinnegan && window.RinneganVFX) window.RinneganVFX.drawAura(ctx, p, feetY, facing, elapsed, true);
     if (p.sixPaths) window.SixPathsMode?.drawAura(ctx, p, feetY, facing, elapsed, true);
+    if (p.susanoo) window.SusanooMode?.drawAura(ctx, p, feetY, facing, elapsed, true);
     if (p.nineTails) S.drawBaryonAbove(ctx, p.x, feetY, facing, elapsed);
     player = me;
     if (!n.local) drawNameTag(n, feetY - S.height(id) - 10, null);
@@ -3813,6 +3857,7 @@
     for (const n of team) if (window.BaryonVFX && n.by?.effects?.length) window.BaryonVFX.drawGround(ctx, n.by, elapsed);
     for (const n of team) if (n.sp) window.SixPathsMode?.drawGround(ctx, n.sp, n.p, elapsed);
     for (const n of team) if (n.ix) window.SasukeIndra?.drawGround(ctx, n.ix, elapsed);
+    for (const n of team) if (n.su) window.SusanooMode?.drawGround(ctx, n.su, n.p, elapsed);
     if (warState.active && window.WarScene?.drawCrowd) {
       Object.assign(warState.view, { x: camera.x - 50, y: camera.y - 50, w: W + 100, h: H + 100 });
       window.WarScene.drawCrowd(ctx, warState.view, elapsed, warState, LAYOUT.battlefield, me);
@@ -3840,6 +3885,7 @@
       if (window.BaryonVFX && n.by?.effects?.length) window.BaryonVFX.drawOverlay(ctx, n.by, elapsed);
       if (n.sp) window.SixPathsMode?.drawOverlay(ctx, n.sp, p, elapsed);
       if (n.ix) window.SasukeIndra?.drawOverlay(ctx, n.ix, elapsed);
+      if (n.su) window.SusanooMode?.drawOverlay(ctx, n.su, p, elapsed);
       ctx.save(); ctx.translate(0, -HAND_HEIGHT);
       if (p.weapon === 'staff' && window.SixPathsStaff) window.SixPathsStaff.drawSwing(ctx, p, elapsed);
       if (p.weapon === 'susano' && window.SusanoBlades) window.SusanoBlades.drawSwing(ctx, p, elapsed);
@@ -3973,6 +4019,7 @@
   }
 
   function villageLabel(id) {
+    if (id === 'konoha') return 'LÀNG LÁ · 木ノ葉';
     const mod = window.ShinobiVillages && window.ShinobiVillages[id];
     return mod ? `${mod.name} · ${mod.jp}` : id.toUpperCase();
   }
@@ -4109,7 +4156,7 @@
   const ENEMY_KINDS = ['walker', 'runner', 'brute', 'spitter', 'boss', 'beast'];
   const ENEMY_SKILLS = ['', 'dash', 'stomp', 'bossPulse', 'shuriken', 'fire', 'fan'];
   const NET_SKIP_KEYS = new Set(['target', 'stuckTo', 'hitIds', 'player', 'hand', 'elapsed', 'startedAt', 'netProxy']);
-  const localNinja = { p: me, sk: skillState, pc: purpleChidoriState, mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState,
+  const localNinja = { p: me, sk: skillState, pc: purpleChidoriState, mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState,
     local: true, firing: false, color: COOP_COLORS[0], name: '' };
   const ninjaList = [localNinja];
 
@@ -4196,14 +4243,14 @@
     for (const b of bullets) if (b.friendly && own.length < 60) own.push(b);
     const p = me, sk = skillState;
     window.CoopNet.send(netJSON({ t: 'p', i: net.impacts.length ? net.impacts : undefined,
-      p: { x: p.x, y: p.y, angle: p.angle, weapon: p.weapon, nineTails: p.nineTails, gates: p.gates, punch: p.punch, rinnegan: p.rinnegan, rinPulse: p.rinPulse, sixPaths: p.sixPaths, spLift: p.spLift, clickMode: p.clickMode, castPose: p.castPose,
+      p: { x: p.x, y: p.y, angle: p.angle, weapon: p.weapon, nineTails: p.nineTails, gates: p.gates, punch: p.punch, rinnegan: p.rinnegan, rinPulse: p.rinPulse, sixPaths: p.sixPaths, spLift: p.spLift, susanoo: p.susanoo, clickMode: p.clickMode, castPose: p.castPose,
         castFrame: p.castFrame, stride: p.stride, speed: p.speed, swing: p.swing, swingAngle: p.swingAngle,
         flash: p.flash, jump: p.jump, health: p.health, maxHealth: p.maxHealth, armor: p.armor, invuln: p.invuln, down: p.down, fireCooldown: p.fireCooldown },
       f: localNinja.firing ? 1 : 0,
       sk: { fireballs: sk.fireballs, fireSeas: sk.fireSeas, tags: sk.tags, beastBombs: sk.beastBombs, rasenShurikens: sk.rasenShurikens, clones: sk.clones,
         summons: sk.summons, trails: sk.trails, vortices: sk.vortices, explosions: sk.explosions, charge: sk.charge },
       pc: { trails: purpleChidoriState.trails, bursts: purpleChidoriState.bursts, charge: purpleChidoriState.charge },
-      mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, b: own }));
+      mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState, b: own }));
     net.impacts.length = 0;
   }
 
@@ -4233,7 +4280,7 @@
     let view = peer.view;
     if (!view) {
       view = peer.view = { p: { r: 13, remote: true, peerId: from, x: msg.p.x, y: msg.p.y }, local: false,
-        sk: null, pc: null, mg: null, hk: null, rn: null, by: null, sp: null, ix: null, bullets: [], firing: false, color: COOP_COLORS[peer.slot], name: peer.name };
+        sk: null, pc: null, mg: null, hk: null, rn: null, by: null, sp: null, ix: null, su: null, bullets: [], firing: false, color: COOP_COLORS[peer.slot], name: peer.name };
     }
     const body = view.p, ox = body.x, oy = body.y;
     Object.assign(body, msg.p);
@@ -4241,7 +4288,7 @@
     // Glide toward the reported spot; Chidori dashes and respawns snap straight there.
     if (Math.hypot(body.tx - ox, body.ty - oy) < 220) { body.x = ox; body.y = oy; }
     view.sk = msg.sk; view.pc = msg.pc; view.mg = msg.mg; view.hk = msg.hk; view.rn = msg.rn || { effects: [] }; view.by = msg.by || { effects: [] };
-    view.sp = msg.sp || { effects: [] }; view.ix = msg.ix || { ally: null, effects: [] };
+    view.sp = msg.sp || { effects: [] }; view.ix = msg.ix || { ally: null, effects: [] }; view.su = msg.su || { effects: [] };
     view.bullets = msg.b || []; view.firing = !!msg.f;
   }
 
@@ -4397,7 +4444,7 @@
   }
 
   function knockOut() {
-    me.down = 6; me.health = 0; me.speed = 0; me.leap = null; me.jump = 0; gateTimers.length = 0; me.gates = me.rinnegan = me.sixPaths = false; me.spLift = 0; me.maxHealth = me.nineTails ? 10000 : 100;
+    me.down = 6; me.health = 0; me.speed = 0; me.leap = null; me.jump = 0; gateTimers.length = 0; me.gates = me.rinnegan = me.sixPaths = me.susanoo = false; me.spLift = 0; me.maxHealth = me.nineTails ? 10000 : 100;
     cancelCharge(); cancelPurpleChidoriCharge();
     bloodBurst(me.x, me.y, rand(0, Math.PI * 2), 16);
     showToast('BẠN ĐÃ GỤC — HỒI SINH CẠNH ĐỒNG ĐỘI SAU 6 GIÂY', 3);
@@ -4702,6 +4749,9 @@
       ...[['SANNIN · TAM NINJA HUYỀN THOẠI', 'sannin', window.SanninBosses], ['HOKAGE LÀNG LÁ', 'hokage', window.HokageBosses],
         ['HUYỀN THOẠI', 'legend', window.LegendBosses]].filter(([, , M]) => M?.order?.length).map(([title, faction, M]) => ({ title, items: M.order.map(id =>
         ({ key: faction[0] + faction[1] + ':' + id, type: 'boss', faction, id, name: M.members[id].name, sprite: window.AnimeSprites?.has(id) ? id : 'pain', tone: M.members[id].accent || '#e8c070' })) })),
+      { title: 'ĐẠI CHIẾN NHẪN GIẢ LẦN 4', items: [['madara', window.MadaraBosses], ['nagato', window.NagatoBoss], ['bee', window.KillerBeeBoss]]
+        .flatMap(([faction, M]) => (M?.order || []).map(id => ({ key: 'w' + faction[0] + ':' + id, type: 'boss', faction, id, name: M.members[id].name,
+          sprite: window.AnimeSprites?.has(M.members[id].sprite || id) ? M.members[id].sprite || id : 'pain', tone: M.members[id].accent || '#e8c070' }))) },
       { title: 'ŌTSUTSUKI', items: (O?.order || []).map(id =>
         ({ key: 'o:' + id, type: 'boss', faction: 'otsutsuki', id, name: O.members[id].name, sprite: id, tone: O.members[id].accent || '#d6beff' })) },
       { title: 'VĨ THÚ', items: (T?.order || []).map(id =>
@@ -4849,6 +4899,7 @@
     if(!e.repeat&&canAct&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.code==='KeyY') toggleGates();
     if(!e.repeat&&canAct&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.code==='KeyU') toggleRinnegan();
     if(!e.repeat&&canAct&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.code==='KeyI') toggleSixPaths();
+    if(!e.repeat&&canAct&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.code==='KeyO') toggleSusanoo();
     if(!e.repeat&&canAct&&e.code==='Digit1'){
       player.weapon='staff';player.fireCooldown=0;updateHUD();showToast('ĐÃ RÚT TRƯỢNG LỤC ĐẠO');
     }
@@ -4919,7 +4970,7 @@
     // Bake the rarer casts in the background so the first boss or summon doesn't hitch.
     const later = ['naruto_baryon', 'naruto_rinnegan', 'pain', 'itachi', 'kisame', 'deidara', 'sasori', 'kakuzu', 'konan', 'hidan',
       'momoshiki', 'kinshiki', 'isshiki', 'kaguya', 'hashirama', 'tobirama', 'hiruzen', 'minato', 'guy',
-      ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo'].filter(id => window.AnimeSprites.has(id))];
+      ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo', 'madara', 'madara_rikudo', 'nagato', 'killer_bee'].filter(id => window.AnimeSprites.has(id))];
     const bake = () => { if (later.length) { window.AnimeSprites.prewarm([later.shift()]); setTimeout(bake, 30); } };
     setTimeout(bake, 400);
   }

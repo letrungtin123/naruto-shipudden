@@ -52,7 +52,7 @@ Trong trận co-op:
     - Từ đường tây, rẽ xuống phía nam: **Làng Mưa** (Amegakure 雨, `village-ame.js`), nơi mưa không bao giờ tạnh.
     - Từ đường đông, rẽ xuống phía nam: **Làng Suối Nước Nóng** (Yugakure 湯, `village-yu.js`).
   - Mỗi ngã rẽ có biển chỉ đường. Khi bước vào làng hoặc vùng đất mới sẽ hiện tên nơi đó. Bản đồ nhỏ ở góc hiển thị vùng quanh bạn.
-  - **Đừng phá nhà ở làng khác!** Nếu bạn (hoặc phân thân, đồng minh của bạn) làm sập một ngôi nhà ở Làng Cát, Làng Sương Mù, Làng Mây hay Làng Đá, cả làng báo động: 16 ninja tinh nhuệ của làng ùa ra săn bạn, và **Kage** của làng xuất hiện (`kage-bosses.js`). Mỗi nhà sập thêm gọi thêm 5 ninja; nếu Kage đã bị hạ, cứ mỗi 5 nhà sập thì Kage quay lại. Nhà do kẻ địch tự phá không tính. Làng nhỏ cũng báo động y như vậy nhưng không có Kage: Làng Mưa gọi Pain, Làng Thác Nước gọi Kakuzu, Làng Suối Nước Nóng gọi Hidan; Làng Âm Thanh và Làng Cỏ chỉ có ninja.
+  - **Đừng phá nhà!** Nếu bạn (hoặc phân thân, đồng minh của bạn) làm sập một ngôi nhà ở Làng Cát, Làng Sương Mù, Làng Mây hay Làng Đá, cả làng báo động: 40 ninja tinh nhuệ của làng ùa ra săn bạn, và **Kage** của làng xuất hiện (`kage-bosses.js`). Mỗi nhà sập thêm gọi thêm 14 ninja; nếu Kage đã bị hạ, cứ mỗi 4 nhà sập thì Kage quay lại. **Làng Lá cũng vậy:** phá nhà ở Làng Lá thì 40 ninja Làng Lá (áo giáp xanh, Hỏa Độn và kunai bùa nổ) cùng **toàn bộ sáu đời Hokage** (Hashirama, Tobirama, Hiruzen, Minato, Tsunade, Kakashi) kéo ra đánh bạn; Hokage nào bị hạ thì quay lại sau mỗi 4 nhà sập. Nhà do kẻ địch tự phá không tính. Làng nhỏ cũng báo động y như vậy nhưng không có Kage: Làng Mưa gọi Pain, Làng Thác Nước gọi Kakuzu, Làng Suối Nước Nóng gọi Hidan; Làng Âm Thanh và Làng Cỏ chỉ có ninja.
     - **Gaara (Kazekage):** Sa Bộc Tống Táng (quan tài cát bóp nát, bán kính khoảng 160px), Sa Thủ Lý Kiếm (3 loạt phi tiêu cát), Sa Bộc Đại Lãng (tường cát dài khoảng 820px quét tới), Sa Thời Vũ (mưa đạn cát); tuyệt chiêu **Sa Bộc Đại Táng**: cả vùng bán kính khoảng 470px hóa sa mạc, vòng cát khép dần rồi cột cát nện xuống giữa. Có lớp cát Tuyệt Đối Phòng Ngự nên chỉ nhận 70% sát thương.
     - **Mei Terumī (Mizukage):** dòng sông dung nham, sương axit hình quạt, Thủy Long Đạn (rồng nước khoảng 920px), mưa cục dung nham để lại vũng cháy; tuyệt chiêu **Dung Hải**: biển dung nham lan ra bán kính khoảng 560px.
     - **A (Raikage):** Lôi Khải (nổ sét đẩy lùi, sau đó nhanh hơn và chịu ít sát thương hơn trong 9 giây), Lariat, chém sét hình lưỡi liềm, Liger Bomb (nhảy lên rồi nện xuống); tuyệt chiêu **Song Lariat · Lôi Bạo**: mây giông giáng 10 tia sét rồi lao một đường dài khoảng 900px.
@@ -72,7 +72,8 @@ Trong trận co-op:
   - Phía đông, bên kia sông: **khu tộc Uchiha** với nhà mái đen, gia huy quạt Uchiha và đền Naka 南賀ノ神社 có cổng torii.
   - Góc đông nam: **Thung lũng Tận cùng**, nơi sông Naka đổ xuống thác giữa hai tượng đá khổng lồ Hashirama và Madara đứng đối mặt kết ấn.
   - Phía bắc là núi mặt Hokage với bảy gương mặt, phía nam là tường làng và cổng A-Un (阿 吽), hai bên là rừng.
-- **Không còn đợt địch tự động.** Bấm nút **＋ TẠO ĐỊCH** (góc trên bên phải) hoặc phím `N` để mở bảng triệu tập: chọn số lượng cho từng loại ninja địch (có nút +10/+50), từng thành viên Akatsuki, Kage, Sannin, Hokage, Huyền Thoại, từng trùm Ōtsutsuki và từng Vĩ Thú, rồi bấm **TẠO ĐỊCH** (hoặc Enter). Mỗi lần tạo tối đa 500 kẻ địch; bản đồ chứa tối đa 600 kẻ địch còn sống cùng lúc. Nút **XOÁ HẾT ĐỊCH TRÊN BẢN ĐỒ** dọn sạch bản đồ. Trò chơi tạm dừng khi bảng đang mở (trừ khi chơi co-op). Trong co-op, ai cũng tạo hoặc xoá địch được; yêu cầu được gửi cho chủ phòng.
+- **Kẻ địch mạnh hơn:** mọi kẻ địch (ninja, Kage, Akatsuki, boss, Vĩ Thú) có máu ×1,8 và sát thương ×1,5 so với trước.
+- **Không còn đợt địch tự động.** Bấm nút **＋ TẠO ĐỊCH** (góc trên bên phải) hoặc phím `N` để mở bảng triệu tập: chọn số lượng cho từng loại ninja địch (có nút +10/+50), từng thành viên Akatsuki, Kage, Sannin, Hokage, Huyền Thoại, nhóm **Đại Chiến Nhẫn Giả Lần 4** (Madara Uế Thổ, Lục Đạo Madara, Nagato Uế Thổ, Killer Bee), từng trùm Ōtsutsuki và từng Vĩ Thú, rồi bấm **TẠO ĐỊCH** (hoặc Enter). Mỗi lần tạo tối đa 500 kẻ địch; bản đồ chứa tối đa 600 kẻ địch còn sống cùng lúc. Nút **XOÁ HẾT ĐỊCH TRÊN BẢN ĐỒ** dọn sạch bản đồ. Trò chơi tạm dừng khi bảng đang mở (trừ khi chơi co-op). Trong co-op, ai cũng tạo hoặc xoá địch được; yêu cầu được gửi cho chủ phòng.
 - Ninja địch nhanh và mạnh. Mỗi loại có chiêu riêng như phi tiêu, lướt sét, chấn địa hoặc Hỏa Độn. Cứ khoảng 8–12 giây mỗi ninja tung thêm một tuyệt kỹ diện rộng, có vùng cảnh báo đỏ trên mặt đất và tên chiêu nhỏ trên đầu:
   - Ninja phi tiêu: Phi Tiêu Vũ (mưa kunai bán kính khoảng 200px) và Bộc Phù Khổ Vô (3 kunai gắn bùa nổ).
   - Ninja Lôi Độn: Lôi Xà (tia sét thẳng khoảng 600px).
@@ -159,7 +160,7 @@ Nếu bật nhiều chế độ, chế độ bật sau cùng giữ chuột trái
 
 ## Lục Đạo Tiên Nhân (六道仙人モード)
 
-Nhấn `I` để bật hoặc tắt (`six-paths-mode.js`). Naruto khoác áo choàng chakra vàng có vòng câu ngọc đen ở cổ, bay lơ lửng như Lục Đạo Madara, sau lưng là vòng **9 Cầu Đạo Ngọc**. Lúc bật có ấn Lục Đạo in xuống đất, cột chakra vàng và sóng chấn động. Sinh lực tối đa tăng **50 lần** (nhân dồn với các chế độ khác), tự hồi **2,5%** mỗi giây, chạy nhanh **1,5 lần**. Cầu Đạo Ngọc tự chặn mọi đòn bắn của địch bay tới gần. Khi đang bật, chuột trái đi theo **chuỗi 12 bước** (giữ chuột để đánh liên tục):
+Nhấn `I` để bật hoặc tắt (`six-paths-mode.js`). Naruto khoác áo choàng chakra vàng có vòng câu ngọc đen ở cổ, bay lơ lửng như Lục Đạo Madara, sau lưng là vòng **9 Cầu Đạo Ngọc**. Lúc bật có ấn Lục Đạo in xuống đất, cột chakra vàng và sóng chấn động. Sinh lực tối đa **10.000** (×100, nhân dồn với các chế độ khác), tự hồi **2,5%** mỗi giây, chạy nhanh **2,3 lần**. Cầu Đạo Ngọc tự chặn mọi đòn bắn của địch bay tới gần. Khi đang bật, chuột trái đi theo **chuỗi 12 bước** (giữ chuột để đánh liên tục):
 
 - **Cầu Đạo Ngọc · Phi Đạn:** 5–7 quả cầu đen bay vòng tới điểm ngắm (xa tới 900) rồi nổ.
 - **Lục Đạo Tích Trượng:** gậy đen thành hình, quét 223° bán kính 330 rồi đâm thẳng 580.
@@ -168,6 +169,20 @@ Nhấn `I` để bật hoặc tắt (`six-paths-mode.js`). Naruto khoác áo cho
 - **Tiên Pháp · Loa Toàn Thủ Lý Kiếm:** Rasenshuriken có Cầu Đạo Ngọc bay quanh, nở thành mái vòm gió bán kính 300 hút địch vào.
 - **Cầu Đạo Ngọc · Hắc Thuẫn Ba:** sóng đen viền vàng lan ra 560, hất văng địch và xoá đòn bắn.
 - Bước 12, chiêu cuối **Lục Đạo · Thiên Ải Chấn Tinh:** ba thiên thạch rơi quanh điểm ngắm, mỗi quả nổ bán kính 250 (7000 sát thương), để lại hố lửa.
+
+## Susanoo (須佐能乎)
+
+Nhấn `O` để bật hoặc tắt (`susanoo-mode.js`). Lửa chakra tím bùng lên, khung xương sườn dựng lên trước rồi đến giáp: một Susanoo tím cao gấp khoảng 4 lần Naruto, có mũ sừng mũi tengu, mắt phát sáng, hai cánh tay giáp lớn, và Naruto vẫn đứng ở giữa. Lúc hình thành có sóng xung kích hất văng địch và xoá đòn bắn. Sinh lực tối đa ×40, tự hồi 2% mỗi giây, mọi đòn trúng chỉ còn **35%** sát thương. Khi đang bật, chuột trái đi theo **chuỗi 10 bước** (giữ chuột để đánh liên tục):
+
+- **Kiếm Trảm:** chém kiếm hình quạt 470.
+- **Susanoo Tiễn:** mũi tên xuyên thẳng 1100.
+- **Thiết Quyền:** nắm đấm khổng lồ nện xuống tạo hố.
+- **Viêm Độn · Kagutsuchi Kiếm:** sóng lửa đen 880, đường đi cháy tiếp vài giây.
+- **Liên Xạ Tiễn:** 7 mũi tên hình quạt.
+- **Amaterasu · Hắc Viêm Tường:** tường lửa đen dài 780, chặn đòn bắn.
+- **Lôi Độn · Thiên Điểu Tiễn:** mũi tên bọc sét, nổ Chidori rồi sét lan sang 5 kẻ địch.
+- **Kagutsuchi Câu Ngọc:** 3 câu ngọc lửa đen, nổ thành vòm lửa.
+- Bước 10, chiêu cuối **Viêm Độn · Susanoo Kagutsuchi:** Susanoo dang cánh, bắn mũi tên lửa đen khổng lồ dài 1200 (8200 sát thương, nổ cuối đường bán kính 360), để lại lửa đen cháy khoảng 4 giây.
 
 ## Sasuke · Indra (因陀羅)
 
@@ -209,6 +224,7 @@ Tắt công tắc để kết thúc đại chiến.
 - `Y`: mở / đóng Bát Môn Độn Giáp; chuột trái thành chuỗi 12 đòn thể thuật của Might Guy
 - `U`: bật / tắt Luân Hồi Nhãn; chuột trái thành Thần La Thiên Chinh / Vạn Tượng Thiên Dẫn / Địa Bộc Thiên Tinh
 - `I`: bật / tắt Lục Đạo Tiên Nhân; chuột trái thành chuỗi nhẫn thuật Lục Đạo
+- `O`: bật / tắt Susanoo (như Sasuke); chuột trái thành chuỗi nhẫn thuật Susanoo
 - `E`: gọi / thu hồi 8 Ảnh Phân Thân
 - `C`: triệu hồi Thập Vĩ
 - `V`: bật/tắt Might Guy ở trạng thái Bát Môn mạnh nhất

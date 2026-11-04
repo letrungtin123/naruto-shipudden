@@ -1489,6 +1489,8 @@
       taki_ninja: { skin: '#eac19c', hair: '#2e4a3a', cloth: '#2f5048', vest: '#7aa494', band: { cloth: '#33423a', symbol: 'taki' }, vestOpts: { strap: true } },
       kusa_ninja: { skin: '#e9c49e', hair: '#5a4a2a', cloth: '#4d6a34', vest: '#9ab86a', band: { cloth: '#3a4a26', symbol: 'grass' }, vestOpts: { ribs: true }, scarf: '#c9b25a' },
       yu_ninja:   { skin: '#eebf98', hair: '#2a2228', cloth: '#7a3a2e', vest: '#d8b48a', band: { cloth: '#3a2a26', symbol: 'yuga' }, vestOpts: { strap: true }, bulk: .5 },
+      // Konoha: the green flak jacket and the leaf on a navy band.
+      konoha_ninja: { skin: '#efc39c', hair: '#3a2a1e', iris: '#3a2a1e', cloth: '#25324a', vest: '#5f7d3a', band: { cloth: '#1c2433', symbol: 'leaf' }, vestOpts: {}, scarf: '#2c3b56' },
       // Allied Shinobi Forces (Fourth War): each village's uniform, every plate engraved with 忍.
       shinobi_ally:      { skin: '#f0c7a2', hair: '#5a3a22', iris: '#4a3222', cloth: '#2b3954', vest: '#5d7a3b', band: { cloth: '#1c1d26', symbol: 'nin' }, vestOpts: {}, mouth: 'smirk' },
       shinobi_ally_suna: { skin: '#e2b48a', hair: '#c08a3e', iris: '#5a4a2a', cloth: '#6e5a44', vest: '#bfa070', band: { cloth: '#1c1d26', symbol: 'nin' }, vestOpts: { strap: true }, len: .9 },
@@ -1837,6 +1839,100 @@
       });
     }
     return spec;
+  }
+
+  // Killer Bee, the Eight-Tails' jinchūriki (killer-bee-boss.js): dark skin, short pale-blond hair,
+  // wraparound sunglasses, white goatee and moustache, the ox-horn tattoo on his cheek and 鉄 on his
+  // shoulder, Kumo's one-strap white flak vest cinched with a thick twisted rope, seven swords fanned on his back.
+  function killerBeeSpec() {
+    const O = '#170e0a', SKIN = '#7d4b2d', SKIN_D = '#5a321e', VEST = '#eeeae0', PANTS = '#2b2d39', BLOND = '#f0e4b2', ROPE = '#d8bd86', BEARD = '#f4f1ea';
+    // One katana seen from behind the shoulder: the scabbard mouth, a round tsuba and the wrapped hilt.
+    const sword = (ctx, x, y, rot, len) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+      line(ctx, [[0, 0], [0, -4]], O, 3.2); line(ctx, [[0, 0], [0, -4]], '#2e2a36', 2.2);
+      paint(ctx, () => ell(ctx, 0, -4.4, 2.1, .9), '#a08a5a', O, .55, () => { ctx.fillStyle = 'rgba(255,240,190,.5)'; ctx.fillRect(-2, -5.2, 4, .6); });
+      line(ctx, [[0, -4.8], [0, -4.8 - len]], O, 2.4); line(ctx, [[0, -4.8], [0, -4.8 - len]], '#e9e4d6', 1.5);
+      ctx.strokeStyle = '#2a2430'; ctx.lineWidth = .4;
+      for (let i = 0; i < len / 1.3 - 1; i++) { const yy = -5.6 - i * 1.3; ctx.beginPath(); ctx.moveTo(-.75, yy); ctx.lineTo(.75, yy - .8); ctx.moveTo(.75, yy); ctx.lineTo(-.75, yy - .8); ctx.stroke(); }
+      paint(ctx, () => ell(ctx, 0, -5.2 - len, 1.05, .8), '#b89a52', O, .5);
+      ctx.restore();
+    };
+    return {
+      outline: O, skin: SKIN, skinShade: SKIN_D, bulk: 2.0, headScale: .95, legK: 1.12,
+      legs: { thigh: PANTS, shin: PANTS, foot: '#20212b', wrap: '#e8e4da', w1: 6.4, w2: 5.2 },
+      arms: {
+        upper: SKIN, lower: SKIN, w1: 6.4, w2: 5.8, guard: '#262833', bare: true,
+        pattern(ctx, p0, p1, p2, far) {
+          if (far) return;
+          // 鉄 ("iron") inked on the shoulder.
+          const m = lerp(p0, p1, .38);
+          ctx.save(); ctx.translate(m[0] + .4, m[1]); ctx.rotate(Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) - Math.PI / 2);
+          ctx.font = 'bold 3.4px "Yu Gothic","MS Gothic",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(20,10,8,.85)'; ctx.fillText('鉄', 0, 0);
+          ctx.restore();
+        }
+      },
+      torso: {
+        base: '#30323e',
+        over(ctx) {
+          flakVest(VEST, { kumo: true, outline: O })(ctx);
+          // Thick twisted rope belt with the knot at the front and two short ends hanging down.
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-7.4, -3.6); ctx.quadraticCurveTo(0, -4.6, 8, -3.4); ctx.lineTo(8.1, .2); ctx.quadraticCurveTo(0, -.8, -7.2, .2); ctx.closePath(); }, ROPE, O, .9, () => {
+            ctx.strokeStyle = '#8f7240'; ctx.lineWidth = .55;
+            for (let x = -8; x < 9; x += 1.5) { ctx.beginPath(); ctx.moveTo(x, -4.4); ctx.quadraticCurveTo(x + .9, -1.8, x + .3, .4); ctx.stroke(); }
+            ctx.fillStyle = 'rgba(255,250,225,.45)'; ctx.fillRect(-8, -4, 17, .8);
+            ctx.fillStyle = SHADE; ctx.fillRect(-8, -1.2, 17, 1.6);
+          });
+          for (const [dx, len, rot] of [[-.6, 6.2, .18], [1.0, 5.2, -.12]]) {
+            ctx.save(); ctx.translate(5 + dx, -1.4); ctx.rotate(rot);
+            paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-.9, 0); ctx.lineTo(-.7, len); ctx.lineTo(.7, len + .3); ctx.lineTo(.9, 0); ctx.closePath(); }, ROPE, O, .6, () => {
+              ctx.strokeStyle = '#8f7240'; ctx.lineWidth = .4; for (let y = .8; y < len; y += 1.2) { ctx.beginPath(); ctx.moveTo(-.9, y); ctx.lineTo(.9, y + .7); ctx.stroke(); }
+            });
+            ctx.restore();
+          }
+          paint(ctx, () => ell(ctx, 5.2, -1.8, 2, 1.7), ROPE, O, .7, () => { ctx.fillStyle = SHADE; ctx.fillRect(3, -1.6, 5, 2); ctx.fillStyle = 'rgba(255,250,225,.5)'; ell(ctx, 4.6, -2.6, .9, .4); ctx.fill(); });
+        }
+      },
+      back(ctx) {
+        // Seven swords fanned out behind the shoulders, hilts up.
+        const list = [[-2.4, 7.4], [-2.18, 8.4], [-1.97, 9.2], [-1.76, 9.6], [-1.56, 9.2], [-1.36, 8.4], [-1.16, 7.4]];
+        list.forEach(([a, len], i) => {
+          const bx = -3.6 + i * .75, by = -11;
+          ctx.save(); ctx.translate(bx, by); ctx.rotate(a + Math.PI / 2);
+          // Scabbard running down the back.
+          line(ctx, [[0, 0], [0, 12]], O, 3); line(ctx, [[0, 0], [0, 12]], i % 2 ? '#3a3040' : '#4a3a2c', 2);
+          ctx.restore();
+          sword(ctx, bx, by, a + Math.PI / 2, len);
+        });
+      },
+      head: {
+        hair: HAIR.spiky(BLOND, { count: 7, len: .42 }),
+        noEyes: true, brows: false, mouth: 'smirk', attackMouth: 'shout', blush: false,
+        band: { cloth: '#1c1e28', plate: '#c3cad3', symbol: 'cloud' },
+        marks(ctx, spec) {
+          // Ox-horn tattoo on the near cheek.
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-.4, 4.4); ctx.quadraticCurveTo(.6, 7.4, 3, 7.8); ctx.quadraticCurveTo(1.2, 6.6, .9, 4.4); ctx.closePath(); }, '#2a160e', null);
+          // White moustache and goatee.
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(4, 7.3); ctx.quadraticCurveTo(6.6, 5.6, 9.8, 6.3); ctx.lineTo(9.6, 7.1); ctx.quadraticCurveTo(6.8, 6.5, 4.4, 8.1); ctx.closePath(); }, BEARD, O, .5);
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(4.8, 9.2); ctx.quadraticCurveTo(6.8, 8.6, 8.8, 9); ctx.quadraticCurveTo(8.4, 11.6, 6.6, 13.6); ctx.quadraticCurveTo(5.2, 11.6, 4.8, 9.2); ctx.closePath(); }, BEARD, O, .6, () => {
+            ctx.fillStyle = 'rgba(150,140,160,.4)'; ctx.fillRect(3, 11.2, 8, 3);
+            ctx.strokeStyle = 'rgba(150,140,160,.6)'; ctx.lineWidth = .3; ctx.beginPath(); ctx.moveTo(6.6, 9.4); ctx.lineTo(6.6, 12.6); ctx.stroke();
+          });
+          // Wraparound sunglasses: two dark lenses, a bridge and the arm running back to the ear.
+          line(ctx, [[-.2, 1.1], [-3.6, 1.2]], O, 1.1);
+          line(ctx, [[-.2, 1.1], [-3.6, 1.2]], '#3a3c48', .5);
+          const lens = (pts) => paint(ctx, () => smooth(ctx, pts), '#15141c', O, .7, () => {
+            ctx.fillStyle = 'rgba(80,90,130,.55)'; ctx.fillRect(-2, 2.6, 14, 2);
+            ctx.fillStyle = 'rgba(255,255,255,.62)';
+            ctx.beginPath(); ctx.moveTo(1, 3.4); ctx.lineTo(2.6, -.2); ctx.lineTo(3.6, -.2); ctx.lineTo(2, 3.4); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(7.4, 2.8); ctx.lineTo(8.6, .2); ctx.lineTo(9.1, .2); ctx.lineTo(7.9, 2.8); ctx.fill();
+          });
+          lens([[-.6, .4], [2.4, -.4], [5.2, .2], [5.2, 2.6], [3.6, 4.6], [.6, 4.4], [-.4, 2.8]]);
+          lens([[6.4, .2], [8.6, -.2], [10.6, .4], [10.4, 2.6], [9.2, 4.2], [7.2, 4], [6.4, 2.6]]);
+          line(ctx, [[5.1, 1.2], [6.5, 1.1]], O, .8);
+        }
+      }
+    };
   }
 
   function tsunadeSpec() {
@@ -2296,6 +2392,36 @@
         else if (pose.raise) staff(ctx, hand[0], hand[1], -.1, 30);
       }
     };
+  }
+
+  // Nagato reanimated by Edo Tensei (nagato-boss.js): gaunt and pale with Edo cracks, black sclera
+  // round the Rinnegan, long straight crimson Uzumaki hair falling past the shoulders with long
+  // bangs framing the face (one lock over the far eye), in the Akatsuki cloak.
+  function nagatoSpec() {
+    const HC = '#c41f2d';
+    return akatsukiSpec({
+      skin: '#eadad0', skinShade: '#b9a2a6', bulk: -.7,
+      legs: { thigh: '#232838', shin: '#232838', foot: '#2a2f45', w1: 4.9, w2: 4.2 },
+      head: {
+        drape: HAIR.longBack(HC, 26, 12.4),
+        hair: HAIR.smooth(HC, { nape: 10.6, bangs: [[10.4, 1.8, 12.6], [-.8, 2.1, 12.6], [9.1, 1.15, 7.4]] }),
+        eyes: { type: 'edoRinnegan' }, mouth: 'neutral', attackMouth: 'shout', browAngle: 'angry', browColor: '#8a1620', blush: false,
+        marks(ctx) {
+          // Hollow cheeks and dark rings under the eyes of the starved body, then the Edo cracks.
+          ctx.fillStyle = 'rgba(110,80,100,.32)';
+          ctx.beginPath(); ctx.moveTo(.4, 6.4); ctx.quadraticCurveTo(2.2, 9.8, 4.4, 10.6); ctx.quadraticCurveTo(2.2, 8.4, 1.8, 6.2); ctx.fill();
+          line(ctx, [[.6, 5.4], [4, 5.9]], 'rgba(90,60,80,.6)', .45); line(ctx, [[6.8, 5.2], [9.4, 5.3]], 'rgba(90,60,80,.55)', .4);
+          edoCracks(ctx);
+        }
+      },
+      front(ctx, pose, hand) {
+        if (!pose.attack && !pose.seal) return;
+        // Palm thrust out: a lavender ripple of the Deva Path's force.
+        ctx.strokeStyle = 'rgba(205,180,255,.85)'; ctx.lineWidth = .45;
+        ell(ctx, hand[0] + 1.6, hand[1], 2.2, 3.2); ctx.stroke();
+        ell(ctx, hand[0] + 2.6, hand[1], 3.4, 5); ctx.stroke();
+      }
+    });
   }
 
   function zetsuSpec() {
@@ -3503,8 +3629,11 @@
     // ------------------------------------------------------------ Fourth Great Ninja War
     madara: madaraSpec(false),
     madara_rikudo: madaraSpec(true),
+    nagato: nagatoSpec(),
     tsunade: tsunadeSpec(),
+    killer_bee: killerBeeSpec(),
     zetsu_white: zetsuSpec(),
+    konoha_ninja: gruntSpec('konoha_ninja'),
     shinobi_ally: gruntSpec('shinobi_ally'), shinobi_ally_suna: gruntSpec('shinobi_ally_suna'), shinobi_ally_kumo: gruntSpec('shinobi_ally_kumo'),
     shinobi_ally_kiri: gruntSpec('shinobi_ally_kiri'), shinobi_ally_iwa: gruntSpec('shinobi_ally_iwa'),
     // Summoned ally (B): Sasuke, Indra's reincarnation.
@@ -3531,8 +3660,10 @@
     hashirama: { scale: 1.14, box: [-36, -80, 36, 8] }, tobirama: { scale: 1.14 }, hiruzen: { scale: 1.12, box: [-38, -86, 38, 8] }, minato: { scale: 1.14 },
     guy: { scale: 1.18 },
     madara: { scale: 1.55, box: [-42, -88, 46, 8] }, madara_rikudo: { scale: 1.6, box: [-42, -88, 46, 8] },
+    nagato: { scale: 1.52, box: [-40, -88, 40, 8] },
     tsunade: { scale: 1.18, box: [-38, -82, 36, 8] }, zetsu_white: { scale: 1 },
-    shinobi_ally: { scale: 1.05 }, shinobi_ally_suna: { scale: 1.05 }, shinobi_ally_kumo: { scale: 1.05 },
+    killer_bee: { scale: 1.42, box: [-44, -86, 42, 8] },
+    konoha_ninja: { scale: 1.05 }, shinobi_ally: { scale: 1.05 }, shinobi_ally_suna: { scale: 1.05 }, shinobi_ally_kumo: { scale: 1.05 },
     shinobi_ally_kiri: { scale: 1.05 }, shinobi_ally_iwa: { scale: 1.05 },
     sasuke_indra: { scale: 1.24, box: [-40, -88, 46, 8] },
     jiraiya: { scale: 1.34, box: [-44, -94, 40, 8] }, orochimaru: { scale: 1.24, box: [-40, -86, 46, 8] }, kabuto: { scale: 1.22, box: [-50, -92, 40, 8] },
@@ -3772,7 +3903,9 @@
     onoki: { hair: '#f2f0ea', fringe: 'bald', accent: '#9ab040', marks: ['nose'] },
     madara: { hair: '#17151d', fringe: 'madara', accent: '#a82028', marks: ['edo'], long: true },
     madara_rikudo: { hair: '#eceaf0', fringe: 'madaraParted', accent: '#d03040', marks: ['thirdEye'], long: true },
+    nagato: { hair: '#c41f2d', fringe: 'part', accent: '#9a7ae0', marks: ['edo'], long: true },
     tsunade: { hair: '#f3d36a', fringe: 'part', accent: '#6fac58', marks: ['byakugo'], long: true },
+    killer_bee: { hair: '#f0e4b2', fringe: 'spiky', accent: '#ffd23a' },
     zetsu_white: { hair: '#e2e3d6', fringe: 'bald', accent: '#9aa080' },
     sasuke_indra: { hair: '#17161e', fringe: 'madara', accent: '#9a62f0' },
     jiraiya: { hair: '#efebe4', fringe: 'minato', accent: '#d8402e', marks: ['sage'], long: true },

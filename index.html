@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Shinobi Siege — bảo vệ Làng Lá trước Akatsuki và các trùm Ōtsutsuki, hóa Cửu Vĩ đỏ và chiến đấu bằng nhẫn thuật; chơi local." />
+  <title>Shinobi Siege</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Latin + Vietnamese UI fonts (all three ship a Vietnamese subset). Offline: system fallbacks in styles.css. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" />
+  <!-- Brush kanji, subset to only the decorative characters used on this page. Offline: Yu Mincho / MS Mincho. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Boku&display=swap&text=忍木ノ葉隠れの里防衛戦操作巻火意志遁影分身口寄せ八門千鳥螺旋丸手裏剣尾獣玉北東南西暁大筒九喇嘛任務一時停止敗崩し" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Shared Konoha leaf crest (spiral leaf). Stroke colour/width come from the <use> element. -->
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="konohaLeaf" viewBox="0 0 120 120">
+        <path fill="none" stroke-linecap="round" stroke-linejoin="round"
+          d="M57 60A6 6 0 0 0 45 60A10.5 10.5 0 0 0 66 60A16 16 0 0 0 34 60A22 22 0 0 0 78 60C80 40 88 22 104 7C72 9 26 20 21 56C17 88 46 104 76 95M27.5 83.4L6 106" />
+      </symbol>
+    </defs>
+  </svg>
+
+  <main id="gameShell">
+    <canvas id="game" aria-label="Shinobi Siege game canvas"></canvas>
+
+    <section id="startScreen" class="panel visible">
+      <div class="bg-kanji" lang="ja" aria-hidden="true">忍</div>
+      <div class="bg-vertical" lang="ja" aria-hidden="true">木ノ葉隠れの里</div>
+
+      <div class="start-layout">
+        <header class="hero">
+          <svg class="konoha-crest" viewBox="0 0 120 120" aria-hidden="true">
+            <use class="crest-outline" href="#konohaLeaf" />
+            <use class="crest-fill" href="#konohaLeaf" />
+          </svg>
+          <div class="eyebrow">NINJA SURVIVAL · LÀNG LÁ</div>
+          <h1 class="logo"><span class="logo-line" data-text="SHINOBI">SHINOBI</span><span class="logo-line logo-line-2" data-text="SIEGE">SIEGE</span></h1>
+          <div class="jp-subtitle"><span class="jp-brush" lang="ja">木ノ葉防衛戦</span><span class="hanko" lang="ja" aria-hidden="true">忍</span></div>
+          <p class="tagline">Đại quân nhẫn giả đang tiến vào. Đánh bật Akatsuki và Ōtsutsuki bằng sức mạnh Cửu Vĩ đỏ.</p>
+          <button id="startButton" class="headband">
+            <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
+            <span class="headband-label">BẢO VỆ LÀNG NINJA</span>
+          </button>
+          <div class="coop-box" role="group" aria-label="Chơi co-op">
+            <div class="coop-title"><span>CO-OP · ĐÁNH BOSS CÙNG BẠN</span><small>TỐI ĐA 4 NGƯỜI</small></div>
+            <input id="coopName" class="coop-input" placeholder="Tên ninja của bạn" maxlength="16" autocomplete="off" />
+            <div class="coop-row">
+              <button id="coopCreate" class="coop-btn" type="button">TẠO PHÒNG</button>
+              <input id="coopCode" class="coop-input coop-code" placeholder="MÃ PHÒNG" maxlength="4" autocomplete="off" />
+              <button id="coopJoin" class="coop-btn" type="button">VÀO PHÒNG</button>
+            </div>
+            <div id="coopError" class="coop-error" role="alert"></div>
+          </div>
+          <div class="loadout-note"><span class="staff-mark" aria-hidden="true"></span><span>KHỞI ĐẦU: <strong>TRƯỢNG LỤC ĐẠO</strong></span></div>
+          <p class="small">Tự chọn kẻ địch bằng nút TẠO ĐỊCH (phím N): ninja địch, Akatsuki, Ōtsutsuki và tám Vĩ Thú. Làng Lá rộng như trong phim, với Rừng Tử Thần, sông Naka, khu Uchiha và Thung lũng Tận cùng. Nhẫn thuật mạnh có thể phá sập nhà và xé nứt mặt đất.</p>
+        </header>
+
+        <div class="showcase">
+          <figure class="emaki">
+            <div class="emaki-paper">
+              <canvas id="titleArt" width="760" height="240" aria-label="Các nhẫn giả Làng Lá"></canvas>
+            </div>
+            <figcaption><span lang="ja">木ノ葉の忍</span> · CÁC NHẪN GIẢ LÀNG LÁ</figcaption>
+          </figure>
+
+          <section class="controls-scroll" aria-label="Điều khiển">
+            <h3 class="scroll-title"><span>BÍ KÍP ĐIỀU KHIỂN</span><span class="scroll-title-jp" lang="ja">操作の巻</span></h3>
+            <div class="controls-grid">
+              <div><kbd>WASD</kbd><span>Di chuyển</span></div>
+              <div><kbd>CHUỘT</kbd><span>Ngắm; trái để quét trượng / bắn</span></div>
+              <div><kbd>SHIFT</kbd><span>Chạy nhanh</span></div>
+              <div><kbd>1</kbd><span>Rút Trượng Lục Đạo</span></div>
+              <div><kbd>2</kbd><span>Rút phi tiêu · ném liên tục</span></div>
+              <div class="susano-weapon-control"><kbd>3</kbd><span>Rút song kiếm Susanoo</span></div>
+              <div><kbd>4</kbd><span>Rút kunai bùa nổ · cắm rồi nổ</span></div>
+              <div class="purple-chidori-control"><kbd>PHẢI</kbd><span>Giữ tụ Chidori tím · thả lướt xa, nổ rộng chí mạng</span></div>
+              <div class="fire-control"><kbd>Q</kbd><span>Hỏa Độn · chạm: hỏa cầu · giữ rồi thả: biển lửa như Madara</span></div>
+              <div class="clone-control"><kbd>E</kbd><span>Ảnh Phân Thân · 8 phân thân tự đi đánh · nhấn lại để thu hồi</span></div>
+              <div class="summon-control"><kbd>C</kbd><span>Triệu Hồi · Thập Vĩ</span></div>
+              <div class="guy-control"><kbd>V</kbd><span>Gọi Might Guy Bát Môn · nhấn lại để thu hồi</span></div>
+              <div class="indra-control"><kbd>B</kbd><span>Gọi Sasuke (Indra chuyển sinh) · Susanoo, Amaterasu, Kirin, Indra Tiễn · nhấn lại để thu hồi</span></div>
+              <div class="hokage-control"><kbd>H</kbd><span>Gọi bốn Hokage Đệ I–IV · nhấn lại để thu hồi</span></div>
+              <div class="lightning-control"><kbd>F</kbd><span>Chidori · lướt sét</span></div>
+              <div class="rasengan-control"><kbd>SPACE</kbd><span>Giữ để tụ Rasengan lớn hơn, thả để đánh</span></div>
+              <div class="rasen-shuriken-control"><kbd>X</kbd><span>Giữ để tụ Rasen Shuriken, thả để phóng</span></div>
+              <div class="beast-control"><kbd>G</kbd><span>Vĩ Thú Ngọc · chỉ khi ở dạng Cửu Vĩ đỏ</span></div>
+              <div class="nine-tails-control"><kbd>T</kbd><span>Chế độ Baryon · Cửu Vĩ đỏ mạnh nhất, ×100 máu, tăng tốc và sát thương; chuột trái: Quyền Chakra / Cửu Vĩ Quất / Cự Thủ Cửu Lạt Ma</span></div>
+              <div class="gates-control"><kbd>Y</kbd><span>Bát Môn Độn Giáp · siêu tốc như Might Guy, chuột trái đấm liên hoàn ra Khổng Tước / Tịch Tượng / Trú Hổ, máu ×30 và tự hồi</span></div>
+              <div class="rinnegan-control"><kbd>U</kbd><span>Luân Hồi Nhãn · máu ×20, tự hồi, hút đòn ném của địch; chuột trái: Thần La Thiên Chinh / Vạn Tượng Thiên Dẫn / Địa Bộc Thiên Tinh</span></div>
+              <div class="sixpaths-control"><kbd>I</kbd><span>Lục Đạo Tiên Nhân · bay lơ lửng, Cầu Đạo Ngọc sau lưng, máu ×50 và tự hồi; chuột trái: chuỗi nhẫn thuật Lục Đạo</span></div>
+              <div><kbd>N</kbd><span>Mở bảng tạo kẻ địch</span></div>
+              <div><kbd>M</kbd><span>Bản đồ lớn</span></div>
+              <div><kbd>P</kbd><span>Bật/tắt đồ hoạ WebGL: phát sáng, sóng xung kích, tách màu</span></div>
+              <div><kbd>ESC</kbd><span>Tạm dừng</span></div>
+              <div><kbd>R</kbd><span>Chơi lại</span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="lobbyScreen" class="panel">
+      <div class="hanging-scroll lobby-scroll">
+        <div class="eyebrow">PHÒNG CO-OP</div>
+        <div class="jp-caption" lang="ja" aria-hidden="true">任務</div>
+        <div class="lobby-code-label">MÃ PHÒNG</div>
+        <div id="lobbyCode" class="lobby-code">----</div>
+        <p class="lobby-hint">Bạn bè mở một trong các địa chỉ dưới đây (cùng mạng Wi-Fi/LAN), nhập mã phòng rồi bấm <strong>VÀO PHÒNG</strong>:</p>
+        <div id="lobbyLinks" class="lobby-links"></div>
+        <ol id="lobbyPlayers" class="lobby-players"></ol>
+        <button id="lobbyStart" class="headband" type="button" hidden>
+          <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
+          <span class="headband-label">BẮT ĐẦU</span>
+        </button>
+        <p id="lobbyWaiting" class="lobby-hint" hidden>Đang chờ chủ phòng bắt đầu…</p>
+        <button id="lobbyLeave" class="coop-btn lobby-leave" type="button">RỜI PHÒNG</button>
+      </div>
+    </section>
+
+    <section id="spawnScreen" class="panel" role="dialog" aria-modal="true" aria-labelledby="spawnTitle">
+      <div class="spawn-card">
+        <header class="spawn-head">
+          <div>
+            <div class="eyebrow">TRIỆU TẬP KẺ ĐỊCH</div>
+            <h2 id="spawnTitle" class="spawn-title">CHỌN ĐỊCH CẦN TẠO</h2>
+          </div>
+          <button id="spawnClose" class="spawn-x" type="button" aria-label="Đóng">✕</button>
+        </header>
+        <label class="spawn-war" for="warToggle">
+          <input id="warToggle" type="checkbox">
+          <span class="war-switch" aria-hidden="true"></span>
+          <span class="war-copy">
+            <strong>ĐẠI CHIẾN NINJA LẦN THỨ TƯ <span lang="ja">第四次忍界大戦</span></strong>
+            <small>Bật rồi bấm TẠO ĐỊCH: vào chiến trường như trong phim, đánh Madara (Uế Thổ Chuyển Sinh) và đạo quân Bạch Zetsu cùng Ngũ Kage, Tứ Đại Hokage và Liên Quân Nhẫn Giả. Hạ Madara xong sẽ đến Lục Đạo Madara. Tắt để kết thúc.</small>
+          </span>
+        </label>
+        <div id="spawnGroups" class="spawn-groups"></div>
+        <footer class="spawn-foot">
+          <span id="spawnTotal" class="spawn-total">Chưa chọn kẻ địch nào</span>
+          <button id="spawnClearAll" class="coop-btn spawn-ghost" type="button">XOÁ HẾT ĐỊCH TRÊN BẢN ĐỒ</button>
+          <button id="spawnReset" class="coop-btn spawn-ghost" type="button">ĐẶT LẠI</button>
+          <button id="spawnGo" class="coop-btn" type="button">TẠO ĐỊCH</button>
+        </footer>
+      </div>
+    </section>
+
+    <section id="pauseScreen" class="panel">
+      <div class="hanging-scroll">
+        <div class="eyebrow">TẠM DỪNG</div>
+        <div class="jp-caption" lang="ja" aria-hidden="true">一時停止</div>
+        <h2>SHINOBI SIEGE</h2>
+        <button id="resumeButton" class="headband">
+          <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
+          <span class="headband-label">TIẾP TỤC</span>
+        </button>
+        <p class="pause-hint"><kbd>ESC</kbd> để quay lại game</p>
+        <p id="pauseCoopNote" class="pause-hint" hidden>Đang chơi co-op: trận đấu vẫn tiếp diễn khi bạn mở menu.</p>
+        <button id="pauseLeave" class="coop-btn" type="button" hidden>RỜI PHÒNG CO-OP</button>
+      </div>
+    </section>
+
+    <section id="gameOverScreen" class="panel">
+      <div class="bg-kanji" lang="ja" aria-hidden="true">敗</div>
+      <div class="defeat-card">
+        <div class="jp-caption" lang="ja" aria-hidden="true">木ノ葉崩し</div>
+        <h2 class="defeat-title">LÀNG THẤT THỦ</h2>
+        <div class="eyebrow danger">BẠN ĐÃ GỤC</div>
+        <p id="endSummary" class="end-summary"></p>
+        <button id="restartButton" class="headband rogue">
+          <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
+          <span class="headband-label">CHƠI LẠI</span>
+        </button>
+      </div>
+    </section>
+
+    <div id="hud" class="hidden" aria-live="polite">
+      <div class="hud-left">
+        <div id="stats">
+          <div class="player-card">
+            <div class="portrait-frame">
+              <canvas id="hudPortrait" width="112" height="112" aria-hidden="true"></canvas>
+              <span class="crest-badge" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
+            </div>
+            <div class="player-panel">
+              <div class="player-name"><span>HỘ VỆ LÀNG LÁ</span><span class="player-name-jp" lang="ja" aria-hidden="true">火の意志</span></div>
+              <div class="health-heading"><span>SINH LỰC</span><strong id="healthValue">100 / 100</strong></div>
+              <div class="bar health"><span id="healthBar"></span></div>
+              <div class="bar armor"><span id="armorBar"></span></div>
+              <div id="weapon">TRƯỢNG LỤC ĐẠO</div>
+            </div>
+          </div>
+          <div id="nineTailsStatus">T · BARYON / CỬU VĨ ĐỎ: TẮT</div>
+          <div id="gatesStatus">Y · BÁT MÔN ĐỘN GIÁP: ĐÓNG</div>
+          <div id="rinneganStatus">U · LUÂN HỒI NHÃN: TẮT</div>
+          <div id="sixPathsStatus">I · LỤC ĐẠO TIÊN NHÂN: TẮT</div>
+        </div>
+        <div id="wavePanel">
+          <div class="wave-label"><span>PHÒNG THỦ LÀNG</span><span class="mini-hanko" lang="ja" aria-hidden="true">任務</span></div>
+          <div id="eventText">Hạ ninja địch để đẩy lùi đợt tấn công.</div>
+        </div>
+        <div id="coopPanel" hidden>
+          <div class="coop-panel-head"><span>ĐỒNG ĐỘI</span><span id="coopRoomCode"></span></div>
+          <ul id="coopTeam"></ul>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <div id="wave">ĐỢT 1</div>
+        <div id="kills">0 NINJA ĐỊCH HẠ GỤC</div>
+        <div id="score">0 ĐIỂM</div>
+        <button id="spawnButton" class="coop-btn spawn-btn" type="button">＋ TẠO ĐỊCH <kbd>N</kbd></button>
+      </div>
+
+      <div id="bossBar" role="group" aria-label="Máu boss">
+        <span class="boss-emblem" aria-hidden="true"></span>
+        <div class="boss-body">
+          <div class="boss-heading">
+            <span class="boss-faction faction-akatsuki">TRÙM ĐỊCH · AKATSUKI <span class="boss-jp" lang="ja" aria-hidden="true">暁</span></span>
+            <span class="boss-faction faction-otsutsuki">TRÙM ĐỊCH · ŌTSUTSUKI <span class="boss-jp" lang="ja" aria-hidden="true">大筒木</span></span>
+            <span class="boss-faction faction-kage">KAGE · TRƯỞNG LÀNG <span class="boss-jp" lang="ja" aria-hidden="true">影</span></span>
+            <span class="boss-faction faction-madara">ĐẠI CHIẾN · MADARA UCHIHA <span class="boss-jp" lang="ja" aria-hidden="true">斑</span></span>
+            <span class="boss-faction faction-sannin">SANNIN · HUYỀN THOẠI <span class="boss-jp" lang="ja" aria-hidden="true">三忍</span></span>
+            <span class="boss-faction faction-hokage">UẾ THỔ · HOKAGE <span class="boss-jp" lang="ja" aria-hidden="true">火影</span></span>
+            <span class="boss-faction faction-legend">UẾ THỔ · HUYỀN THOẠI <span class="boss-jp" lang="ja" aria-hidden="true">伝説</span></span>
+            <span class="boss-faction faction-beast">VĨ THÚ <span class="boss-jp" lang="ja" aria-hidden="true">尾獣</span></span>
+            <strong id="bossName">BOSS</strong>
+          </div>
+          <div class="boss-track"><span id="bossHealthBar"></span></div>
+        </div>
+      </div>
+
+      <div id="prompt"></div>
+
+      <div id="skillBar" role="group" aria-label="Kỹ năng nhẫn thuật" aria-live="off">
+        <div id="skillQ" class="skill skill-fire skill-charge"><kbd>Q</kbd><span class="jutsu-mark" lang="ja" aria-hidden="true">火遁</span><span class="skill-copy"><strong>HỎA ĐỘN</strong><small>Chạm: hỏa cầu · giữ: biển lửa</small></span></div>
+        <div id="skillE" class="skill skill-clone"><kbd>E</kbd><span class="jutsu-mark jm-3" lang="ja" aria-hidden="true">影分身</span><span class="skill-copy"><strong>ẢNH PHÂN THÂN</strong><small>8 phân thân · bật/tắt</small></span></div>
+        <div id="skillC" class="skill skill-summon"><kbd>C</kbd><span class="jutsu-mark jm-3" lang="ja" aria-hidden="true">口寄せ</span><span class="skill-copy"><strong>THẬP VĨ</strong><small>Triệu hồi hộ vệ</small></span></div>
+        <div id="skillV" class="skill skill-guy"><kbd>V</kbd><span class="jutsu-mark" lang="ja" aria-hidden="true">八門</span><span class="skill-copy"><strong>MIGHT GUY</strong><small>Bật/tắt · không giới hạn giờ</small></span></div>
+        <div id="skillH" class="skill skill-hokage"><kbd>H</kbd><span class="jutsu-mark" lang="ja" aria-hidden="true">火影</span><span class="skill-copy"><strong>HOKAGE</strong><small>Bật/tắt · Đệ I–IV</small></span></div>
+        <div id="skillB" class="skill skill-indra"><kbd>B</kbd><span class="jutsu-mark jm-3" lang="ja" aria-hidden="true">因陀羅</span><span class="skill-copy"><strong>SASUKE · INDRA</strong><small>Bật/tắt · Susanoo, Kirin, Indra Tiễn</small></span></div>
+        <div id="skillF" class="skill skill-lightning"><kbd>F</kbd><span class="jutsu-mark" lang="ja" aria-hidden="true">千鳥</span><span class="skill-copy"><strong>CHIDORI</strong><small>Lôi kích</small></span></div>
+        <div id="skillSpace" class="skill skill-vortex skill-charge"><kbd>SPACE</kbd><span class="jutsu-mark jm-3" lang="ja" aria-hidden="true">螺旋丸</span><span class="skill-copy"><strong>RASENGAN</strong><small>Giữ tụ · thả đánh</small></span></div>
+        <div id="skillX" class="skill skill-shuriken skill-charge"><kbd>X</kbd><span class="jutsu-mark jm-5" lang="ja" aria-hidden="true"><span>螺旋</span><span>手裏剣</span></span><span class="skill-copy"><strong>RASEN SHURIKEN</strong><small>Giữ tụ · thả phóng</small></span></div>
+        <div id="skillG" class="skill skill-beast skill-charge"><kbd>G</kbd><span class="jutsu-mark jm-3" lang="ja" aria-hidden="true">尾獣玉</span><span class="skill-copy"><strong>VĨ THÚ NGỌC</strong><small>Cửu Vĩ đỏ · giữ tụ · thả bắn</small></span></div>
+      </div>
+
+      <div class="minimap-seal">
+        <canvas id="minimap" width="180" height="180" aria-label="Bản đồ nhỏ"></canvas>
+        <span class="seal-dir dir-n" lang="ja" aria-hidden="true">北</span>
+        <span class="seal-dir dir-e" lang="ja" aria-hidden="true">東</span>
+        <span class="seal-dir dir-s" lang="ja" aria-hidden="true">南</span>
+        <span class="seal-dir dir-w" lang="ja" aria-hidden="true">西</span>
+      </div>
+
+      <div id="toast"></div>
+    </div>
+  </main>
+  <script src="anime-sprites.js"></script>
+  <script src="konoha-world.js"></script>
+  <script src="world-map.js"></script>
+  <script src="village-suna.js"></script>
+  <script src="village-kiri.js"></script>
+  <script src="village-kumo.js"></script>
+  <script src="village-iwa.js"></script>
+  <script src="village-ame.js"></script>
+  <script src="village-oto.js"></script>
+  <script src="village-taki.js"></script>
+  <script src="village-kusa.js"></script>
+  <script src="village-yu.js"></script>
+  <script src="skill-vfx.js"></script>
+  <script src="six-paths-staff.js"></script>
+  <script src="susano-blades.js"></script>
+  <script src="summon-vfx.js"></script>
+  <script src="might-guy-vfx.js"></script>
+  <script src="enemy-jutsu-vfx.js"></script>
+  <script src="rinnegan-vfx.js"></script>
+  <script src="baryon-vfx.js"></script>
+  <script src="madara-bosses.js"></script>
+  <script src="war-allies.js"></script>
+  <script src="war-scene.js"></script>
+  <script src="hokage-vfx.js"></script>
+  <script src="destruction-vfx.js"></script>
+  <script src="purple-chidori-vfx.js"></script>
+  <script src="six-paths-mode.js"></script>
+  <script src="sasuke-indra.js"></script>
+  <script src="akatsuki-bosses.js"></script>
+  <script src="otsutsuki-bosses.js"></script>
+  <script src="tailed-beasts.js"></script>
+  <script src="kage-bosses.js"></script>
+  <script src="sannin-bosses.js"></script>
+  <script src="hokage-bosses.js"></script>
+  <script src="legend-bosses.js"></script>
+  <script src="coop.js"></script>
+  <script src="postfx.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

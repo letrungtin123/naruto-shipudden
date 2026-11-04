@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bảng thiết kế nhân vật</title>
+<style>
+  :root {
+    --bg: #0f1016; --panel: #171923; --panel2: #1e2130; --line: #2c3044; --text: #e9e6f2; --muted: #9a97ad; --accent: #ff9d3a;
+    --cell: #232637;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(15,16,22,.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .02em; }
+  header h1 span { color: var(--accent); }
+  .stats { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .stats b { color: var(--text); font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-left: auto; font-size: 13px; }
+  .controls label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+  select, input[type=search] { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font: inherit; }
+  nav { padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+  nav a { color: var(--muted); text-decoration: none; font-size: 12.5px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 99px; }
+  nav a:hover { color: var(--text); border-color: var(--accent); }
+  main { padding: 8px 16px 60px; }
+  section.group > h2 { font-size: 15px; margin: 26px 0 10px; color: var(--accent); letter-spacing: .03em; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; margin: 0 0 14px; }
+  .card h3 { margin: 0 0 2px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .card h3 code { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .card .sub { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .row-title { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; margin: 10px 0 4px; }
+  .frames { display: flex; flex-wrap: wrap; gap: 6px; }
+  figure { margin: 0; display: flex; flex-direction: column; align-items: center; }
+  figcaption { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+  canvas.cell { background: var(--cell); border-radius: 6px; display: block; }
+  .bg-grass canvas.cell { background: linear-gradient(#4f7a3a, #3d6430 70%, #34552a); }
+  .bg-light canvas.cell { background: #d9d4c6; }
+  .bg-dirt canvas.cell { background: linear-gradient(#8a7656, #6f5d43); }
+  .extras { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-top: 4px; }
+  canvas.portrait { border-radius: 8px; background: #11131b; border: 1px solid var(--line); display: block; }
+  canvas.closeup { border-radius: 6px; display: block; max-width: 100%; height: auto; border: 1px solid var(--line); }
+  canvas.live { background: var(--cell); border-radius: 6px; display: block; }
+  .eyes-demo { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .eyes-demo canvas { width: 100%; height: auto; }
+  .note { color: var(--muted); font-size: 12.5px; max-width: 900px; }
+  .err { color: #ff6b6b; }
+  /* ?compact=1 — dense review sheet */
+  .compact header, .compact nav, .compact figcaption, .compact .group > h2 { display: none; }
+  .compact main { padding: 4px; }
+  .compact section.group { display: flex; flex-wrap: wrap; gap: 4px; }
+  .compact .card { padding: 3px 4px; margin: 0; }
+  .compact .card h3 { font-size: 11px; margin: 0; }
+  .compact .frames { gap: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bảng thiết kế nhân vật <span>Shinobi Siege</span></h1>
+  <div class="stats" id="stats">Đang tải…</div>
+  <div class="controls">
+    <label>Nền ô
+      <select id="bg">
+        <option value="dark">Tối</option>
+        <option value="grass">Cỏ</option>
+        <option value="dirt">Đất</option>
+        <option value="light">Sáng</option>
+      </select>
+    </label>
+    <label>Hướng
+      <select id="facing">
+        <option value="1">Quay phải</option>
+        <option value="-1">Quay trái</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="animate" checked /> Chạy hoạt ảnh</label>
+    <label><input type="search" id="filter" placeholder="Lọc theo tên / id…" /></label>
+  </div>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<script>
+(() => {
+  'use strict';
+  const params = new URLSearchParams(location.search);
+  const SRC = params.get('src') || 'anime-sprites.js';
+  const stats = document.getElementById('stats');
+
+  const GROUPS = [
+    ['Naruto & các dạng biến hình', ['naruto', 'naruto_baryon', 'naruto_rinnegan', 'naruto_baryon_rinnegan', 'clone']],
+    ['Hokage', ['hashirama', 'tobirama', 'hiruzen', 'minato', 'tsunade']],
+    ['Các Kage khác', ['gaara', 'mei', 'ay', 'onoki']],
+    ['Đồng minh Konoha', ['guy']],
+    ['Akatsuki', ['pain', 'itachi', 'kisame', 'deidara', 'sasori', 'kakuzu', 'konan', 'hidan']],
+    ['Tộc Ōtsutsuki', ['momoshiki', 'kinshiki', 'isshiki', 'kaguya']],
+    ['Uchiha Madara & Đại chiến lần IV', ['madara', 'madara_rikudo', 'zetsu_white']],
+    ['Liên quân Nhẫn giả', ['shinobi_ally', 'shinobi_ally_suna', 'shinobi_ally_kumo', 'shinobi_ally_kiri', 'shinobi_ally_iwa']],
+    ['Lính các làng (quân thường)', ['walker', 'runner', 'brute', 'spitter', 'suna_ninja', 'kiri_ninja', 'kumo_ninja', 'iwa_ninja',
+      'ame_ninja', 'oto_ninja', 'taki_ninja', 'kusa_ninja', 'yu_ninja']]
+  ];
+  const NAMES = {
+    naruto: 'Uzumaki Naruto', naruto_baryon: 'Naruto · Chế độ Baryon', naruto_rinnegan: 'Naruto · Rinnegan',
+    naruto_baryon_rinnegan: 'Naruto · Baryon + Rinnegan', clone: 'Ảnh phân thân',
+    hashirama: 'Senju Hashirama · Hokage Đệ Nhất', tobirama: 'Senju Tobirama · Hokage Đệ Nhị', hiruzen: 'Sarutobi Hiruzen · Hokage Đệ Tam',
+    minato: 'Namikaze Minato · Hokage Đệ Tứ', tsunade: 'Tsunade · Hokage Đệ Ngũ',
+    gaara: 'Gaara · Kazekage', mei: 'Terumī Mei · Mizukage', ay: 'A · Raikage', onoki: 'Ōnoki · Tsuchikage', guy: 'Might Guy',
+    pain: 'Pain (Thiên Đạo)', itachi: 'Uchiha Itachi', kisame: 'Hoshigaki Kisame', deidara: 'Deidara', sasori: 'Sasori',
+    kakuzu: 'Kakuzu', konan: 'Konan', hidan: 'Hidan',
+    momoshiki: 'Ōtsutsuki Momoshiki', kinshiki: 'Ōtsutsuki Kinshiki', isshiki: 'Ōtsutsuki Isshiki', kaguya: 'Ōtsutsuki Kaguya',
+    madara: 'Uchiha Madara (Uế Thổ)', madara_rikudo: 'Madara · Lục Đạo', zetsu_white: 'Zetsu Trắng',
+    shinobi_ally: 'Liên quân · Konoha', shinobi_ally_suna: 'Liên quân · Suna', shinobi_ally_kumo: 'Liên quân · Kumo',
+    shinobi_ally_kiri: 'Liên quân · Kiri', shinobi_ally_iwa: 'Liên quân · Iwa',
+    walker: 'Lính Kiri (đi bộ)', runner: 'Lính Kumo (chạy nhanh)', brute: 'Lính Iwa (to con)', spitter: 'Lính Oto (phun độc)',
+    suna_ninja: 'Ninja Suna', kiri_ninja: 'Ninja Kiri', kumo_ninja: 'Ninja Kumo', iwa_ninja: 'Ninja Iwa', ame_ninja: 'Ninja Ame',
+    oto_ninja: 'Ninja Oto', taki_ninja: 'Ninja Taki', kusa_ninja: 'Ninja Kusa', yu_ninja: 'Ninja Yu'
+  };
+  const FRAME_LABEL = f => ({
+    idle: 'Đứng', idle1: 'Đứng · thở', attack: 'Tấn công', seal: 'Kết ấn', raise: 'Giơ tay'
+  })[f] || (/^run(\d)$/.test(f) ? 'Chạy ' + (+f.slice(3) + 1) + (['· chạm đất', '· hạ thấp', '· lướt qua', '· bật lên'][+f.slice(3) % 4] || '') : f);
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  function makeCanvas(w, h, cls) {
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    c.style.width = w + 'px'; c.style.height = h + 'px';
+    if (cls) c.className = cls;
+    const g = c.getContext('2d'); g.scale(dpr, dpr);
+    return [c, g];
+  }
+
+  function load() {
+    const s = document.createElement('script');
+    s.src = SRC + '?v=' + Date.now();
+    s.onload = build;
+    s.onerror = () => { stats.innerHTML = '<span class="err">Không tải được ' + SRC + '</span>'; };
+    document.body.appendChild(s);
+  }
+
+  const live = [];
+  async function build() {
+    const S = window.AnimeSprites;
+    if (!S) { stats.innerHTML = '<span class="err">Không có window.AnimeSprites</span>'; return; }
+    const ids = Object.keys(S.SPECS);
+    const facing = +document.getElementById('facing').value;
+
+    // Measure the cold prewarm exactly like the game does it (all poses, both facings).
+    // Canvas 2D defers rasterisation, so the cost is measured up to a forced flush: every cached
+    // pose is stamped once onto a probe canvas and a pixel is read back.
+    const warmIds = ids.filter(id => id !== 'clone');
+    const t0 = performance.now();
+    S.prewarm(warmIds);
+    const t1 = performance.now();
+    // Then every cached pose is blitted once onto an on-page canvas (as the game does on first
+    // use) and we wait for two frames to be presented.
+    const probe = document.createElement('canvas'); probe.width = 320; probe.height = 120;
+    probe.style.cssText = 'position:fixed;left:0;bottom:0;width:32px;height:12px;opacity:.01;pointer-events:none';
+    document.body.appendChild(probe);
+    const pg = probe.getContext('2d');
+    for (const id of warmIds) for (const f of S.FRAMES) for (const facing of [1, -1]) {
+      const o = { facing, scale: 1 };
+      if (/^run\d$/.test(f)) { o.frame = 'run'; o.phase = (+f.slice(3)) / (S.FRAMES.filter(n => /^run\d$/.test(n)).length / 4); } else { o.frame = f; o.phase = 0; }
+      S.draw(pg, id, 160, 110, o);
+    }
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const t2 = performance.now();
+    probe.remove();
+    const perId = (t2 - t0) / Math.max(1, warmIds.length);
+    const hasCloseUp = typeof S.drawCloseUp === 'function';
+    stats.innerHTML = `Nguồn: <b>${SRC}</b> · <b>${ids.length}</b> nhân vật · <b>${S.FRAMES.length}</b> khung/nhân vật · ` +
+      `prewarm ${warmIds.length} nhân vật: <b>${(t1 - t0).toFixed(0)} ms</b>, tính đến khi vẽ xong khung hình: <b>${(t2 - t0).toFixed(0)} ms</b> (≈${perId.toFixed(1)} ms/nhân vật)` +
+      (hasCloseUp ? ' · có <b>drawCloseUp</b>' : ' · <span class="err">chưa có drawCloseUp</span>');
+    window.__galleryPrewarmMs = t1 - t0;
+
+    const main = document.getElementById('main'), nav = document.getElementById('nav');
+    main.textContent = ''; nav.textContent = ''; live.length = 0;
+    const seen = new Set();
+    const groups = GROUPS.map(([t, list]) => [t, list.filter(id => S.SPECS[id])]);
+    const rest = ids.filter(id => !GROUPS.some(([, l]) => l.includes(id)));
+    if (rest.length) groups.push(['Khác', rest]);
+
+    if (hasCloseUp && !params.get('focus')) {
+      const sec = document.createElement('section'); sec.className = 'group'; sec.id = 'g-eyes';
+      sec.innerHTML = '<h2>Cận cảnh mắt trước khi tung chiêu (drawCloseUp)</h2><p class="note">Khung cắt cảnh 640×160 vẽ bằng vector ở đúng độ phân giải, có thể ghi đè loại mắt bằng <code>opts.eye</code>.</p>';
+      const grid = document.createElement('div'); grid.className = 'eyes-demo';
+      for (const [id, eye, label] of [['naruto', null, 'Naruto · mắt thường'], ['naruto', 'sage', 'Naruto · Tiên nhân'], ['naruto', 'kurama', 'Naruto · Cửu Vĩ'],
+        ['naruto_baryon', null, 'Naruto · Baryon'], ['itachi', null, 'Itachi · Sharingan'], ['itachi', 'mangekyo', 'Itachi · Mangekyō'],
+        ['pain', null, 'Pain · Rinnegan'], ['madara_rikudo', null, 'Madara · Rinnegan + Rinne-Sharingan'], ['madara', 'sharingan', 'Madara · Sharingan'],
+        ['kaguya', null, 'Kaguya · Byakugan'], ['momoshiki', null, 'Momoshiki · Byakugan'], ['gaara', null, 'Gaara']]) {
+        if (!S.SPECS[id]) continue;
+        const f = document.createElement('figure');
+        const [c, g] = makeCanvas(640, 160, 'closeup');
+        try { S.drawCloseUp(g, id, 640, 160, eye ? { eye } : {}); } catch (e) { console.error(e); }
+        f.appendChild(c);
+        const cap = document.createElement('figcaption'); cap.textContent = label; f.appendChild(cap);
+        grid.appendChild(f);
+      }
+      sec.appendChild(grid); main.appendChild(sec);
+      const a = document.createElement('a'); a.href = '#g-eyes'; a.textContent = 'Cận cảnh mắt'; nav.appendChild(a);
+    }
+
+    // ?focus=id1,id2&zoom=4&frames=idle,run0 — inspection view: chosen characters only, magnified.
+    const focus = (params.get('focus') || '').split(',').filter(id => S.SPECS[id]);
+    if (focus.length) {
+      if (params.get('compact')) { document.body.classList.add('compact'); document.getElementById('animate').checked = false; }
+      const zoom = +(params.get('zoom') || 4);
+      const frames = (params.get('frames') || '').split(',').filter(f => S.FRAMES.includes(f));
+      const sec = document.createElement('section'); sec.className = 'group';
+      sec.innerHTML = '<h2>Soi chi tiết · phóng ' + zoom + '×</h2>';
+      for (const id of focus) {
+        const el = document.createElement('div'); el.className = 'card';
+        el.innerHTML = `<h3>${NAMES[id] || id} <code>${id}</code></h3>`;
+        const row = document.createElement('div'); row.className = 'frames';
+        const k = (S.META[id]?.scale || 1) * zoom, cw = Math.ceil(56 * k), ch = Math.ceil(90 * k);
+        for (const f of frames.length ? frames : S.FRAMES) {
+          const fig = document.createElement('figure');
+          const [c, g] = makeCanvas(cw, ch, 'cell');
+          drawFrame(S, g, id, f, cw / 2, ch - 6 * k, zoom, facing);
+          fig.appendChild(c);
+          const cap = document.createElement('figcaption'); cap.textContent = FRAME_LABEL(f); fig.appendChild(cap);
+          row.appendChild(fig);
+        }
+        el.appendChild(row);
+        const ex = document.createElement('div'); ex.className = 'extras';
+        if (params.get('extras') === '0') { sec.appendChild(el); continue; }
+        const [pc, pg] = makeCanvas(220, 220, 'portrait'); S.drawPortrait(pg, id, 220); ex.appendChild(pc);
+        if (hasCloseUp) { const [c, g] = makeCanvas(640, 160, 'closeup'); S.drawCloseUp(g, id, 640, 160); ex.appendChild(c); }
+        el.appendChild(ex);
+        sec.appendChild(el);
+      }
+      main.appendChild(sec);
+      return;
+    }
+
+    groups.forEach(([title, list], gi) => {
+      if (!list.length) return;
+      const sec = document.createElement('section'); sec.className = 'group'; sec.id = 'g' + gi;
+      const h2 = document.createElement('h2'); h2.textContent = title + ' (' + list.length + ')'; sec.appendChild(h2);
+      const a = document.createElement('a'); a.href = '#g' + gi; a.textContent = title; nav.appendChild(a);
+      for (const id of list) {
+        seen.add(id);
+        sec.appendChild(card(S, id, facing, hasCloseUp));
+      }
+      main.appendChild(sec);
+    });
+    applyFilter();
+  }
+
+  function card(S, id, facing, hasCloseUp) {
+    const meta = S.META[id] || {}, scale = meta.scale || 1;
+    const el = document.createElement('div'); el.className = 'card'; el.dataset.key = (id + ' ' + (NAMES[id] || '')).toLowerCase();
+    el.innerHTML = `<h3>${NAMES[id] || id} <code>${id}</code></h3><div class="sub">Tỉ lệ trong game ×${scale} · cao ≈ ${S.height(id).toFixed(0)} px CSS</div>`;
+    for (const zoom of [2, 1]) {
+      const t = document.createElement('div'); t.className = 'row-title';
+      t.textContent = zoom === 2 ? 'Tất cả khung hình · phóng 2× so với trong game' : 'Tất cả khung hình · đúng kích thước trong game (1×)';
+      el.appendChild(t);
+      const row = document.createElement('div'); row.className = 'frames';
+      const k = scale * zoom;
+      const cw = Math.ceil(64 * k), ch = Math.ceil(92 * k);
+      for (const f of S.FRAMES) {
+        const fig = document.createElement('figure');
+        const [c, g] = makeCanvas(cw, ch, 'cell');
+        drawFrame(S, g, id, f, cw / 2, ch - 8 * k, zoom, facing);
+        fig.appendChild(c);
+        const cap = document.createElement('figcaption'); cap.textContent = FRAME_LABEL(f); fig.appendChild(cap);
+        row.appendChild(fig);
+      }
+      el.appendChild(row);
+    }
+    const t = document.createElement('div'); t.className = 'row-title'; t.textContent = 'Hoạt ảnh · chân dung · cận cảnh'; el.appendChild(t);
+    const ex = document.createElement('div'); ex.className = 'extras';
+    // Live loop: run cycle at game speed, then idle breathing.
+    {
+      const k = scale * 2, cw = Math.ceil(64 * k) * 2, ch = Math.ceil(92 * k);
+      const fig = document.createElement('figure');
+      const [c, g] = makeCanvas(cw, ch, 'live');
+      fig.appendChild(c);
+      const cap = document.createElement('figcaption'); cap.textContent = 'Chạy (2×) · Đứng thở (2×)'; fig.appendChild(cap);
+      ex.appendChild(fig);
+      live.push({ id, g, cw, ch, k, el: c });
+    }
+    for (const size of [88, 160]) {
+      const fig = document.createElement('figure');
+      const [c, g] = makeCanvas(size, size, 'portrait');
+      try { S.drawPortrait(g, id, size); } catch (e) { console.error(e); }
+      fig.appendChild(c);
+      const cap = document.createElement('figcaption'); cap.textContent = 'Chân dung ' + size + 'px'; fig.appendChild(cap);
+      ex.appendChild(fig);
+    }
+    if (hasCloseUp) {
+      const fig = document.createElement('figure');
+      const [c, g] = makeCanvas(640, 160, 'closeup');
+      try { S.drawCloseUp(g, id, 640, 160); } catch (e) { console.error(e); }
+      fig.appendChild(c);
+      const cap = document.createElement('figcaption'); cap.textContent = 'Cận cảnh 640×160'; fig.appendChild(cap);
+      ex.appendChild(fig);
+    }
+    el.appendChild(ex);
+    return el;
+  }
+
+  function drawFrame(S, g, id, f, x, y, zoom, facing) {
+    S.shadow(g, x, y, 12 * (S.META[id]?.scale || 1) * zoom, .32);
+    // Call the renderer with the exact frame name through the public API.
+    const opts = { facing, scale: zoom };
+    // Run frames go through the public 'run' + phase mapping (also checks the 8-frame timing);
+    // everything else (idle, idle1, attack…) is requested by its exact frame name.
+    if (/^run\d$/.test(f)) { opts.frame = 'run'; opts.phase = (+f.slice(3)) / (S.FRAMES.filter(n => /^run\d$/.test(n)).length / 4); }
+    else { opts.frame = f; opts.phase = 0; }
+    S.draw(g, id, x, y, opts);
+  }
+
+  // Animation: phase advances like the game's enemies (≈ 4 phase units per run cycle).
+  let last = performance.now(), phase = 0;
+  function tick(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (document.getElementById('animate').checked) {
+      phase += dt * 9;
+      const S = window.AnimeSprites, facing = +document.getElementById('facing').value;
+      for (const L of live) {
+        const r = L.el.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > innerHeight || L.el.closest('.card').style.display === 'none') continue;
+        L.g.clearRect(0, 0, L.cw, L.ch);
+        const y = L.ch - 8 * L.k;
+        S.shadow(L.g, L.cw * .25, y, 12 * L.k / 2 * 2, .32);
+        S.draw(L.g, L.id, L.cw * .25, y, { facing, frame: 'run', phase, scale: 2 });
+        S.shadow(L.g, L.cw * .75, y, 12 * L.k / 2 * 2, .32);
+        S.draw(L.g, L.id, L.cw * .75, y, { facing, frame: 'idle', scale: 2 });
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // Debug helper (console): inspect(['naruto:idle', 'itachi:run3'], 6, 'vector'|'sprite')
+  // opens a full-page overlay with big renders — vector = straight from renderCharacter.
+  window.inspect = (list, zoom = 6, mode = 'vector', region) => {
+    const S = window.AnimeSprites;
+    document.getElementById('inspect')?.remove();
+    const box = document.createElement('div'); box.id = 'inspect';
+    box.style.cssText = 'position:fixed;inset:0;z-index:99;background:#14151d;display:flex;flex-wrap:wrap;gap:8px;padding:8px;overflow:auto';
+    box.onclick = () => box.remove();
+    for (const item of list) {
+      const [id, frame = 'idle'] = item.split(':');
+      // region = [x0, y0, x1, y1] in character units (origin at the feet), e.g. the head.
+      const R = region || [-23, -82, 23, 4];
+      const w = Math.round((R[2] - R[0]) * zoom), h = Math.round((R[3] - R[1]) * zoom);
+      const [c, g] = makeCanvas(w, h, 'cell');
+      if (mode === 'vector') { g.translate(-R[0] * zoom, -R[1] * zoom); g.scale(zoom, zoom); S.renderCharacter(g, id, frame); }
+      else S.draw(g, id, -R[0] * zoom, -R[1] * zoom, { frame, phase: 0, scale: zoom / ((S.META[id] && S.META[id].scale) || 1) });
+      box.appendChild(c);
+    }
+    document.body.appendChild(box);
+  };
+
+  // Debug helper (console): cu([['itachi', 'mangekyo'], ['pain']], 640, 160) — close-up overlay.
+  window.cu = (list, W = 640, H = 160) => {
+    document.getElementById('inspect')?.remove();
+    const box = document.createElement('div'); box.id = 'inspect';
+    box.style.cssText = 'position:fixed;inset:0;z-index:99;background:#222;overflow:auto;padding:6px';
+    box.onclick = () => box.remove();
+    for (const [id, eye] of list) { const [c, g] = makeCanvas(W, H, 'closeup'); c.style.margin = '4px 0'; window.AnimeSprites.drawCloseUp(g, id, W, H, eye ? { eye } : {}); box.appendChild(c); }
+    document.body.appendChild(box);
+  };
+
+  function applyFilter() {
+    const q = document.getElementById('filter').value.trim().toLowerCase();
+    for (const c of document.querySelectorAll('.card')) c.style.display = !q || c.dataset.key.includes(q) ? '' : 'none';
+  }
+  document.getElementById('filter').addEventListener('input', applyFilter);
+  document.getElementById('bg').addEventListener('change', e => { document.body.className = e.target.value === 'dark' ? '' : 'bg-' + e.target.value; });
+  document.getElementById('facing').addEventListener('change', () => build());
+  load();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

@@ -56,6 +56,13 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Team battle: jutsu in key order 1..n for manual control (the reaction jutsu included, ultimate last).
+  const MOVE_LIST = {
+    madara: ['susanoo', 'goka', 'jukai', 'gaeshi', 'gakido', 'tengai'],
+    madara_rikudo: ['rods', 'staff', 'limbo', 'shield', 'perfect', 'tengai3']
+  };
+  for (const id in MOVE_LIST) MOVE_LIST[id] = MOVE_LIST[id].map(k => ({ id: k, label: MOVES[k].label }));
+  function moves(z) { return (z && MOVE_LIST[z.bossId]) || []; }
 
   const BLUE_FLAME = [[1, '#1c2585'], [.84, '#2f45c4'], [.66, '#5674ee'], [.46, '#98b0ff'], [.25, '#eef2ff']];
   const METEOR = { tengai: { r: 280, fall: 2.5, dmg: 3.0 }, tengai3: { r: 320, fall: 2.4, dmg: 3.2 } };
@@ -299,7 +306,7 @@
       if (s.b.life <= 0 || (s.b.x === s.px && s.b.y === s.py)) { st.shots.splice(i, 1); continue; }
       s.px = s.b.x; s.py = s.b.y;
     }
-    if (z.health <= 0) { z.madaraWindup = 0; return; }
+    if (z.health <= 0) { z.madaraWindup = 0; z.manualBusy = false; return; }
 
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
@@ -349,6 +356,13 @@
         st.hold = .35;
         st.move = '';
       }
+    } else if (z.manual) {
+      // Manual control: only the user's key starts a jutsu — no reflex dome/shield/gaeshi, no Shunshin blink.
+      if (z.manualCast != null && st.hold <= 0 && st.dash <= 0) {
+        const mv = MOVE_LIST[z.bossId] && MOVE_LIST[z.bossId][z.manualCast];
+        z.manualCast = null;
+        if (mv) announce(z, st, m, api, mv.id);
+      }
     } else {
       st.timer -= dt;
       const hurt = st.hpMark - z.health > z.maxHealth * .045;
@@ -365,6 +379,7 @@
         addFx(st, { kind: 'blink', x: z.x, y: z.y, facing: Math.cos(st.dashA) >= 0 ? 1 : -1, dur: .4 });
       }
     }
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.dash > 0;
     z.madaraWindup = st.windup;
     z.speedScale = st.windup > 0 ? .22 : st.hold > 0 ? .4 : m.speed;
   }
@@ -706,7 +721,7 @@
     for (const ry of [.4, .75]) { ctx.beginPath(); ctx.ellipse(x, fy - 128 * ry, R * Math.sqrt(1 - ry * ry), R * .42 * Math.sqrt(1 - ry * ry), 0, 0, TAU); ctx.stroke(); }
     // Rinnegan ripples on the ground and chakra being drawn in
     for (let i = 0; i < 3; i++) {
-      const r = ((time * .9 + i / 3) % 1) * R;
+      const r = ((((time * .9 + i / 3) % 1) + 1) % 1) * R;
       ctx.strokeStyle = `rgba(190,160,255,${.6 * (1 - r / R)})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(x, fy, r, r * .42, 0, 0, TAU); ctx.stroke();
     }
@@ -1422,5 +1437,6 @@
     ctx.restore();
   }
 
-  window.MadaraBosses = { order, members, moveLabels, moves: MOVES, pick, update, draw, drawOverlay, bodyLift, drawTransform, spriteId };
+  // `moves` is the team-battle move list (contract A); the jutsu table itself stays reachable as `moveDefs`.
+  window.MadaraBosses = { order, members, moveLabels, moveDefs: MOVES, moves, pick, update, draw, drawOverlay, bodyLift, drawTransform, spriteId };
 })();

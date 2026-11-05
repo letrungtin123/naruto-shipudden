@@ -53,6 +53,9 @@
   const MAX_ARMIES = 4, MAX_SPORE_CLONES = 9;
 
   function pick() { return order[0]; }
+  // Manual control (team mode): keys 1..8 in this order, the spore storm (the ultimate) last.
+  const KEYS = ['burrow', 'spore', 'thorns', 'latch', 'army', 'jaws', 'cage', 'storm'];
+  const moves = () => KEYS.map(k => ({ label: MOVES[k].label }));
   const aimAt = (z, p) => p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0;
 
   function state(z) {
@@ -273,15 +276,27 @@
     const t = clamp01(((p.x - x0) * dx + (p.y - y0) * dy) / L2), cx = x0 + dx * t, cy = y0 + dy * t;
     return Math.hypot(p.x - cx, p.y - cy) < w + (p.r || 16);
   }
+  // Manual control: the cursor point is no host, so the goo grabs the first hostile unit along the tendril.
+  function latchVictim(f, reach, api) {
+    if (!api.nearestFoe) return null;
+    const c = Math.cos(f.a), s = Math.sin(f.a);
+    for (let d = 30; d <= reach; d += 60) {
+      const q = api.nearestFoe(f.x0 + c * d, f.y0 + s * d, LATCH_W + 30);
+      if (q && !q.pseudo && q.health > 0) return q;
+    }
+    return null;
+  }
   function latchCheck(z, st, f, api, D) {
     if (f.hit || z.health <= 0) return;
-    const p = api.player;
+    let p = api.player;
     if (!p || p.health <= 0) return;
-    const reach = Math.min(LATCH_LEN, f.age * LATCH_SPEED + 40);
-    if (!segHits(f.x0, f.y0, f.x0 + Math.cos(f.a) * reach, f.y0 + Math.sin(f.a) * reach, p, LATCH_W)) return;
+    const reach = Math.min(LATCH_LEN, f.age * LATCH_SPEED + 40), pseudo = !!p.pseudo;
+    if (pseudo) { p = latchVictim(f, reach, api); if (!p) return; }
+    else if (!segHits(f.x0, f.y0, f.x0 + Math.cos(f.a) * reach, f.y0 + Math.sin(f.a) * reach, p, LATCH_W)) return;
     f.hit = true; f.target = p; f.dur = Math.max(f.dur, f.age + LATCH_T + .6);
-    st.latch = { target: p, t: LATCH_T, tick: .1, dmg: D, fx: f };
-    api.damagePlayer(D * .8);
+    st.latch = { target: p, t: LATCH_T, tick: .1, dmg: D, fx: f, strike: pseudo };
+    if (pseudo) api.strike(p.x, p.y, (p.r || 16) + 4, D * .8, null, null, true);
+    else api.damagePlayer(D * .8);
     api.burst(p.x, p.y - 24, '#2a2238', 12);
     api.shake(8);
   }
@@ -294,7 +309,7 @@
     let drank = 0;
     for (let i = 0; i < fx.pods.length; i += 2) {
       const s = fx.pods[i];
-      if (p && Math.hypot(p.x - s.x1, p.y - s.y1) < 84) drank++;
+      if (p && !p.pseudo && Math.hypot(p.x - s.x1, p.y - s.y1) < 84) drank++;
       api.strike(s.x1, s.y1, 78, fx.dmg * .2, null, null, true);
     }
     if (drank && z && z.health > 0) z.health = Math.min(z.maxHealth, z.health + z.maxHealth * .0025 * Math.min(3, drank));
@@ -357,7 +372,9 @@
     if (L.tick <= 0) {
       L.tick = .4;
       // Black Zetsu feeds on the host's chakra.
-      if (api.player === p) api.damagePlayer(L.dmg * .3);
+      if (api.player === p && !L.strike) api.damagePlayer(L.dmg * .3);
+      // Manual victim, or a team-mode host that is no longer this boss's current target: hit it where it stands.
+      else if (L.strike || z.team !== undefined) api.strike(p.x, p.y, (p.r || 16) + 4, L.dmg * .3, null, null, true);
       z.health = Math.min(z.maxHealth, z.health + z.maxHealth * .003);
     }
   }
@@ -373,7 +390,7 @@
       if (fx.upd && z.health > 0) fx.upd(fx, dt, api, z);
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.under = null; st.latch = null; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.under = null; st.latch = null; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -381,16 +398,26 @@
     if (st.latch) latchUpdate(z, st, dt, api);
     if (st.under) underUpdate(z, st, dt, api);
     if (!st.under) z.kageDash = 0;
-    else if (st.hold > 0) { st.hold = Math.max(0, st.hold - dt); if (!st.hold) st.holdMove = ''; }
+    // (counts down above ground too: the spore storm's hold used to never run out, freezing him after it)
+    if (st.hold > 0) { st.hold = Math.max(0, st.hold - dt); if (!st.hold) st.holdMove = ''; }
     z.armorScale = m.armor || 1;
+    st.rec = Math.max(0, (st.rec || 0) - dt);
 
     if (st.windup > 0) {
       st.windup = Math.max(0, st.windup - dt);
       if (st.windup === 0) {
         cast(z, st, m, api);
+        st.rec = .4;
         st.timer = MOVES[st.move].after * rand(.9, 1.1) * (z.health < z.maxHealth * .5 ? .82 : 1);
         st.move = '';
         st.tele = [];
+      }
+    } else if (st.hold <= 0 && !st.under && z.manual) {
+      // Driven by the player: only the requested jutsu; no rotation, no burrow toward a far target.
+      if (z.manualCast != null && st.rec <= 0) {
+        let k = KEYS[z.manualCast]; z.manualCast = null;
+        if (k === 'army' && st.armies >= MAX_ARMIES) k = 'jaws';   // same cap on the White Zetsu army as the AI
+        if (k) { st.force = k; announce(z, st, m, api); }
       }
     } else if (st.hold <= 0 && !st.under) {
       st.timer -= dt;
@@ -400,6 +427,7 @@
       else if (st.timer <= 0 && p && d < 1600) { st.force = 'burrow'; announce(z, st, m, api); }
     }
     z.bossWindup = st.windup > 0 ? st.windup : st.under ? 0 : st.hold;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.rec > 0 || !!st.under;
     z.speedScale = .9;
   }
 
@@ -1218,5 +1246,5 @@
     ctx.restore();
   }
 
-  window.ZetsuBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.ZetsuBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

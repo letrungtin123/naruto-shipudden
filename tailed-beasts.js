@@ -99,6 +99,7 @@
     else st.combo.a = Math.atan2(o.ty - z.y, o.tx - z.x);
   }
   function aimCombo(z, c, p) {
+    if (!p) { if (c.a === undefined) c.a = Math.cos(z.angle || 0) >= 0 ? 0 : Math.PI; c.tx = z.x + Math.cos(c.a) * c.max * .6; c.ty = z.y + Math.sin(c.a) * c.max * .6; return; }
     const a = Math.atan2(p.y - z.y, p.x - z.x), d = Math.min(c.max, Math.hypot(p.x - z.x, p.y - z.y) + (c.over || 0));
     c.a = a; c.tx = z.x + Math.cos(a) * d; c.ty = z.y + Math.sin(a) * d;
   }
@@ -275,6 +276,12 @@
     gyuki:    [mv('inkCannon', 'MẶC ĐỘN · MẶC PHÁO', 1.0, 1.8), mv('tentacles', 'BÁT VĨ · XÚC TU OANH KÍCH', .95, 1.9), mv('clone', 'CHƯƠNG NGƯ PHÂN THÂN', .9, 2.0), mv('inkPool', 'MẶC ĐỘN · MẶC TRÌ', 1.0, 1.9)]
   };
   for (const id in MOVES) MOVES[id].push(BOMB);
+  // Manual control (team mode): the beast's jutsu in key order 1..n, the Bijūdama last.
+  const MANUAL = {};
+  for (const id in MOVES) MANUAL[id] = MOVES[id].slice(0, 8).map(d => ({ id: d.id, label: d.label }));
+  function moves(z) { return (z && MANUAL[z.beastId || z.bossId]) || []; }
+  // The hero (or a co-op teammate) carries invuln frames; units of another team and the cursor do not.
+  const heroTarget = p => !!p && !p.pseudo && !p.type;
 
   // ---------------------------------------------------------------- behaviour
   function announce(z, st, api) {
@@ -282,7 +289,7 @@
     let def = null;
     if (z.tbForce) { def = list.find(d => d.id === z.tbForce) || null; z.tbForce = null; }
     if (!def) { def = list[st.casts % list.length]; st.casts++; }
-    const p = api.player, a = Math.atan2(p.y - z.y, p.x - z.x), d = Math.hypot(p.x - z.x, p.y - z.y);
+    const p = api.player || { x: z.x + facingOf(z) * 300, y: z.y }, a = Math.atan2(p.y - z.y, p.x - z.x), d = Math.hypot(p.x - z.x, p.y - z.y);
     st.after = def.after; st.windMax = def.windup;
     z.beastSkill = def.id; z.beastLabel = def.label;
     PLAN[def.id](z, st, api, { tx: p.x, ty: p.y, a, d, dmg: api.damage, W: def.windup });
@@ -331,7 +338,7 @@
   // hit that lands right after one of our own ticks should not be swallowed by it.
   function unblock(st, api) {
     const p = api.player;
-    if (p && p.invuln > 0 && p.invuln <= .38 && api.time - (st.tickAt === undefined ? -9 : st.tickAt) < .4) p.invuln = 0;
+    if (heroTarget(p) && p.invuln > 0 && p.invuln <= .38 && api.time - (st.tickAt === undefined ? -9 : st.tickAt) < .4) p.invuln = 0;
   }
   function tickFx(z, st, fx, dt, api) {
     const t = fx.age;
@@ -354,17 +361,18 @@
       case 'wave': {
         if (t < fx.delay) break;
         if (!fx.shook) { fx.shook = true; api.shake(11); }
-        const front = Math.min(fx.reach, (t - fx.delay) * fx.speed), p = api.player;
+        const front = Math.min(fx.reach, (t - fx.delay) * fx.speed), p = api.player, hero = heroTarget(p);
         for (let i = 0; i < fx.hits.length; i++) {
           const h = fx.hits[i];
           if (h.done || h.d > front) continue;
           // each strike circle stays live for a moment after the front passes, until the wave lands once
-          if (fx.landed || front - h.d > fx.speed * .3) h.done = true;
+          // (a unit of another team or the cursor has no invuln frames: each circle lands once)
+          if (fx.landed || front - h.d > fx.speed * .3 || !hero) h.done = true;
           if (!h.tried) { h.tried = true; unblock(st, api); if (fx.wk && i % 4 === 0) api.world(h.x, h.y, h.r, fx.dmg * 1.3, fx.wk, fx.a); }
-          const pre = p.invuln;
+          const pre = hero ? p.invuln : 0;
           api.strike(h.x, h.y, h.r, fx.dmg, null, null, true);
-          if (pre <= 0 && p.invuln > 0) fx.landed = true;
-          if (fx.knock && !fx.knocked && Math.hypot(p.x - h.x, p.y - h.y) < h.r + (p.r || 12)) { fx.knocked = true; api.knockback({ x: fx.x, y: fx.y }, front + 80, fx.knock, 0); }
+          if (hero && pre <= 0 && p.invuln > 0) fx.landed = true;
+          if (fx.knock && !fx.knocked && p && !p.pseudo && Math.hypot(p.x - h.x, p.y - h.y) < h.r + (p.r || 12)) { fx.knocked = true; api.knockback({ x: fx.x, y: fx.y }, front + 80, fx.knock, 0); }
         }
         if (fx.leave && front >= fx.reach && (fx.tick = (fx.tick === undefined ? .3 : fx.tick) - dt) <= 0) {
           fx.tick = .5; st.tickAt = api.time;
@@ -449,9 +457,10 @@
         st.dead = true; st.combo = null; st.windup = 0; st.lift = 0;
         st.fx = st.fx.filter(fx => fx.age >= fx.delay && fx.kind !== 'charge');
       }
-      z.beastWindup = 0; z.beastDashTimer = 0;
+      z.beastWindup = 0; z.beastDashTimer = 0; z.manualBusy = false;
       return;
     }
+    z.manualBusy = !!st.combo || st.windup > 0;
     z.beastPulse = Math.max(0, (z.beastPulse || 0) - dt);
     if (st.combo) { updateCombo(z, st, api, dt); return; }
     if (st.windup > 0) {
@@ -463,9 +472,19 @@
       }
       return;
     }
-    st.timer -= dt;
-    const p = api.player;
-    if (st.timer <= 0 && p && Math.hypot(p.x - z.x, p.y - z.y) < 980) announce(z, st, api);
+    if (z.manual) {
+      // Controlled by the user: only the requested jutsu, once nothing is still running.
+      if (z.manualCast != null) {
+        const mv = moves(z)[z.manualCast];
+        z.manualCast = null;
+        if (mv) { z.tbForce = mv.id; announce(z, st, api); }
+      }
+    } else {
+      st.timer -= dt;
+      const p = api.player;
+      if (st.timer <= 0 && p && Math.hypot(p.x - z.x, p.y - z.y) < 980) announce(z, st, api);
+    }
+    z.manualBusy = !!st.combo || st.windup > 0;
   }
 
   // ---------------------------------------------------------------- drawing helpers
@@ -2272,5 +2291,5 @@
     }
   }
 
-  window.TailedBeasts = { members, order, pick, update, draw, drawTelegraph, drawGround, drawOverlay };
+  window.TailedBeasts = { members, order, pick, update, draw, drawTelegraph, drawGround, drawOverlay, moves };
 })();

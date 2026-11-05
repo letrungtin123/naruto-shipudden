@@ -83,6 +83,20 @@
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
 
+  // Team battle: the member's jutsu in key order 1..n (each once, ultimate last) for manual control.
+  const MOVE_LIST = {};
+  for (const id in members) {
+    const ids = [...new Set(members[id].moves)];
+    MOVE_LIST[id] = ids.filter(k => !MOVES[k].ult).concat(ids.filter(k => MOVES[k].ult)).map(k => ({ id: k, label: MOVES[k].label }));
+  }
+  function moves(z) { return (z && MOVE_LIST[z.bossId]) || []; }
+  // What a hit-check may test: in manual control api.player is only the cursor, so use the nearest hostile unit instead.
+  function foeNear(api, x, y, r) {
+    const p = api.player;
+    if (!p || !p.pseudo) return p;
+    return api.nearestFoe ? api.nearestFoe(x, y, r) : null;
+  }
+
   function pick(wave) {
     // The horde includes an Akatsuki leader on every wave from wave 2 onward.
     const index = Math.max(0, wave - 2);
@@ -494,14 +508,14 @@
       case 'knock': api.knockback({ x: e.x, y: e.y }, e.r, e.d, e.dmg || 0); break;
       case 'pull': {
         // Banshō Ten'in: drag the target across the field into Pain's reach.
-        const p = api.player;
+        const p = foeNear(api, e.x, e.y, e.r);
         if (!p) break;
         const d = Math.hypot(p.x - e.x, p.y - e.y);
         if (d < e.r && d > 95) api.knockback({ x: e.x, y: e.y }, e.r, -(d - 85), e.dmg);
         break;
       }
       case 'knockcone': {
-        const p = api.player;
+        const p = foeNear(api, e.x, e.y, e.r);
         if (!p) break;
         const d = Math.hypot(p.x - e.x, p.y - e.y), an = Math.atan2(p.y - e.y, p.x - e.x);
         if (d < e.r && Math.abs(Math.atan2(Math.sin(an - e.a), Math.cos(an - e.a))) < e.half + .1) api.knockback({ x: e.x, y: e.y }, e.r, e.d, 0);
@@ -514,7 +528,7 @@
       case 'dash': s.dash = e.dur; s.dashA = e.a; s.dashV = e.v; break;
       case 'bite': {
         // Senshokuzame: sharks surface under the target wherever they stand in the flood.
-        const f = findFx(s, 'sea'), p = api.player;
+        const f = findFx(s, 'sea'), p = f && (foeNear(api, f.x, f.y, f.r) || api.player);
         if (!f || !p || f.bites.length > 7) break;
         const x = p.x + rand(-40, 40), y = p.y + rand(-40, 40);
         if (Math.hypot(x - f.x, y - f.y) > f.r) break;
@@ -533,11 +547,12 @@
       else api.strike(f.x, f.y, hz.r, hz.dmg, null, null, true);
     }
     if (f.mv) {
-      const p = api.player;
+      const p0 = api.player, ps = p0 && p0.pseudo;
       for (const m of f.mv) {
         if (m.l <= 0 || f.age < m.d) continue;
         m.x += m.vx * dt; m.y += m.vy * dt; m.l -= dt; m.cd -= dt;
         if (m.l <= 0) { m.e = f.age; continue; }
+        const p = ps ? (m.cd <= 0 ? foeNear(api, m.x, m.y, m.r + 40) : null) : p0;
         if (p && m.cd <= 0 && Math.hypot(p.x - m.x, p.y - m.y) < m.r + (p.r || 13)) {
           api.strike(m.x, m.y, m.r, m.dmg, null, null, true);
           if (m.p) m.cd = .45; else { m.l = 0; m.e = f.age; }
@@ -547,7 +562,7 @@
     switch (f.k) {
       case 'birds': {
         if (f.age < f.w) break;
-        const p = api.player;
+        const p = api.player, ps = p && p.pseudo;
         for (let i = 0; i < f.b.length; i++) {
           const b = f.b[i];
           if (b.e >= 0) continue;
@@ -557,7 +572,9 @@
           }
           const sp = 320 + Math.min(1, f.age - f.w) * 160;
           b.x += Math.cos(b.a) * sp * dt; b.y += Math.sin(b.a) * sp * dt;
-          if ((p && Math.hypot(p.x - b.x, p.y - b.y) < 58) || f.age > f.w + 2.4 + i * .08) {
+          // manual control: a bird bursts on any hostile it brushes, or on reaching the aimed point
+          const near = ps ? !!foeNear(api, b.x, b.y, 58) || Math.hypot(p.x - b.x, p.y - b.y) < 40 : p && Math.hypot(p.x - b.x, p.y - b.y) < 58;
+          if (near || f.age > f.w + 2.4 + i * .08) {
             b.e = f.age;
             api.strike(b.x, b.y, 100, f.dmg, null, i % 2 ? null : 'fire', true);
             api.shake(7);
@@ -574,7 +591,7 @@
       case 'sea':
         if (f.age > f.w && f.age < f.w + 1.35) {
           // the wave front of the flood hits once as it rolls over the target, smashing what it passes
-          const front = (f.age - f.w) * f.sp, p = api.player;
+          const front = (f.age - f.w) * f.sp, p = foeNear(api, f.x, f.y, f.r + 10);
           if (p && !f.hf) {
             const d = Math.hypot(p.x - f.x, p.y - f.y);
             if (d < f.r + 10 && Math.abs(d - front) < 75) { f.hf = 1; api.strike(p.x, p.y, 8, f.dmg, null, null, true); }
@@ -589,9 +606,9 @@
     }
   }
 
-  function announce(z, s, m, api) {
-    const move = m.moves[s.casts % m.moves.length], def = MOVES[move], p = api.player;
-    s.casts++;
+  function announce(z, s, m, api, forced) {
+    const move = forced || m.moves[s.casts % m.moves.length], def = MOVES[move], p = api.player;
+    if (!forced) s.casts++;
     s.move = move; s.windup = s.windMax = def.windup;
     s.aim = p ? Math.atan2(p.y - z.y, p.x - z.x) : (z.angle || 0);
     s.tx = p ? p.x : z.x; s.ty = p ? p.y : z.y;
@@ -608,7 +625,7 @@
       if (z.health > 0) tickFx(z, s, f, dt, api);
       if (f.age >= f.dur) s.fx.splice(i, 1);
     }
-    if (z.health <= 0) { z.akatsukiWindup = 0; s.windup = 0; s.move = ''; s.ev.length = 0; return; }
+    if (z.health <= 0) { z.akatsukiWindup = 0; s.windup = 0; s.move = ''; s.ev.length = 0; z.manualBusy = false; return; }
     for (let i = 0; i < s.ev.length; i++) {
       const e = s.ev[i];
       if ((e.t -= dt) <= 0) { s.ev.splice(i--, 1); runEvent(z, s, api, e); }
@@ -625,10 +642,18 @@
         s.timer = MOVES[s.move].after * rand(.9, 1.1) * (z.health < z.maxHealth * .5 ? .8 : 1);
         s.hold = .35; s.move = '';
       }
+    } else if (z.manual) {
+      // Manual control: only the user's key starts a jutsu (game.js expires stale requests).
+      if (z.manualCast != null && s.hold <= 0 && s.dash <= 0) {
+        const mv = MOVE_LIST[z.bossId][z.manualCast];
+        z.manualCast = null;
+        if (mv) announce(z, s, m, api, mv.id);
+      }
     } else {
       s.timer -= dt;
       if (s.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 860) announce(z, s, m, api);
     }
+    z.manualBusy = s.windup > 0 || s.hold > 0 || s.dash > 0;
     z.akatsukiWindup = s.windup;
     z.akatsukiSkill = s.move;
     // Frozen while calling a jutsu (so the telegraph stays honest), slowed just after.
@@ -2587,5 +2612,5 @@
     ctx.restore();
   }
 
-  window.AkatsukiBosses = { members, order, moveLabels, pick, update, draw, drawOverlay };
+  window.AkatsukiBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, moves };
 })();

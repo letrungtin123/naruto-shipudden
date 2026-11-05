@@ -44,6 +44,8 @@
     gyuki:     { label: 'VĨ THÚ HÓA · BÁT VĨ GYŪKI', rap: '♪ BAKA YARO, KONO YARO! ♪', rgb: '255,70,110', windup: 1.4, after: 2.0 }
   };
   const CYCLE = ['lariat', 'ink', 'swords', 'tentacles', 'tbb', 'double', 'sweep', 'gyuki'];
+  // Manual control (team mode): keys 1..8 follow the cycle, Gyūki (the ultimate) last.
+  const moves = () => CYCLE.map(k => ({ label: MOVES[k].label }));
   const CLOAKED = new Set(['lariat', 'tentacles', 'tbb', 'double', 'sweep', 'gyuki']);
 
   function state(z) {
@@ -109,9 +111,9 @@
     return [];
   }
 
-  function announce(z, st, api) {
-    const move = CYCLE[st.casts % CYCLE.length];
-    st.casts++;
+  function announce(z, st, api, forced) {
+    const move = forced || CYCLE[st.casts % CYCLE.length];
+    if (!forced) st.casts++;
     const def = MOVES[move], p = api.player;
     st.move = move; st.windup = st.windMax = def.windup;
     st.aim = p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0;
@@ -314,7 +316,7 @@
     if (z.health <= 0) {
       z.bossWindup = 0; z.kageDash = 0; st.dash = null; st.ev.length = 0; st.windup = 0; st.move = '';
       if (st.gy) { addFx(st, { kind: 'transform', x: st.gy.x, y: st.gy.y, r: 300, dur: 1.6, seed: 3, revert: true }); st.gy = null; }
-      st.ally = null;
+      st.ally = null; z.manualBusy = false;
       return;
     }
     for (let i = st.ev.length - 1; i >= 0; i--) {
@@ -322,6 +324,7 @@
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
     }
     st.hold = Math.max(0, st.hold - dt);
+    st.rec = Math.max(0, (st.rec || 0) - dt);
     st.cloakT = Math.max(0, st.cloakT - dt);
     const want = st.cloakT > 0 || st.dash ? 1 : 0;
     st.cloak += (want - st.cloak) * Math.min(1, dt * (want ? 7 : 3));
@@ -366,9 +369,16 @@
       st.windup = Math.max(0, st.windup - dt);
       if (st.windup === 0) {
         cast(z, st, api);
+        st.rec = .4;
         st.timer = MOVES[st.move].after * rand(.9, 1.1);
         st.move = '';
         st.tele = [];
+      }
+    } else if (!st.dash && !st.gy && z.manual) {
+      // Driven by the player: only the requested jutsu, no rotation.
+      if (z.manualCast != null && st.rec <= 0 && st.hold <= 0) {
+        const k = CYCLE[z.manualCast]; z.manualCast = null;
+        if (k) announce(z, st, api, k);
       }
     } else if (!st.dash && !st.gy) {
       st.timer -= dt;
@@ -376,6 +386,7 @@
       if (st.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 950) announce(z, st, api);
     }
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.rec > 0 || !!st.dash || !!st.gy;
   }
 
   // When the boss dies the game stops calling update; keep its effects playing out.
@@ -1451,5 +1462,5 @@
 
   const hidden = z => !!(z.kb && z.kb.gy && z.health > 0 && z.kb.gy.t > .15);
 
-  window.KillerBeeBoss = { members, order, pick, update, draw, drawOverlay, hidden, moveLabels: Object.fromEntries(Object.entries(MOVES).map(([k, v]) => [k, v.label])) };
+  window.KillerBeeBoss = { members, order, pick, update, draw, drawOverlay, hidden, moves, moveLabels: Object.fromEntries(Object.entries(MOVES).map(([k, v]) => [k, v.label])) };
 })();

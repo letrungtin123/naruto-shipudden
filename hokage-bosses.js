@@ -75,6 +75,10 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): each member's distinct jutsu in key order 1..n, ultimate last.
+  const MANUAL = {};
+  for (const id in members) MANUAL[id] = [...new Set(members[id].moves)].slice(0, 8).map(k => ({ id: k, label: MOVES[k].label }));
+  function moves(z) { return (z && MANUAL[z.bossId]) || []; }
 
   const BOLT_B = ['90,170,255', '170,220,255', '240,250,255'];
   const BOLT_P = ['150,60,255', '200,150,255', '250,235,255'];
@@ -586,7 +590,7 @@
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
     for (let i = st.fl.length - 1; i >= 0; i--) if ((st.fl[i].age += dt) > .55) st.fl.splice(i, 1);
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.dash = st.jump = null; st.ev.length = 0; st.cloak = st.byak = 0; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; z.manualBusy = false; st.dash = st.jump = null; st.ev.length = 0; st.cloak = st.byak = 0; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -634,10 +638,20 @@
         st.tele = [];
       }
     } else if (!st.dash && !st.jump) {
-      st.timer -= dt;
-      const p = api.player;
-      if (st.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 880) announce(z, st, m, api);
+      if (z.manual) {
+        // Controlled by the user: only the requested jutsu, once nothing is still running.
+        if (z.manualCast != null && st.hold <= 0 && st.atk <= 0) {
+          const mv = moves(z)[z.manualCast];
+          z.manualCast = null;
+          if (mv) { st.force = mv.id; announce(z, st, m, api); }
+        }
+      } else {
+        st.timer -= dt;
+        const p = api.player;
+        if (st.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 880) announce(z, st, m, api);
+      }
     }
+    z.manualBusy = st.windup > 0 || !!st.dash || !!st.jump || st.hold > 0 || st.atk > 0;
     if (st.atk > 0) dash = Math.max(dash, .05);
     z.kageDash = dash;
     z.bossWindup = dash > 0 ? 0 : st.windup > 0 ? st.windup : st.hold;
@@ -3072,5 +3086,5 @@
     ctx.restore();
   }
 
-  window.HokageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, bodyLift };
+  window.HokageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, bodyLift, moves };
 })();

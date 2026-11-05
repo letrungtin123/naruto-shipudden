@@ -55,6 +55,9 @@
   const GEDO_HOLD = 5.0, GEDO_DUR = 6.4, GEDO_SC = .74, GEDO_BACK = 70, SLAM_R = 210, FINAL_R = 430;
 
   function pick() { return order[0]; }
+  // Manual control (team mode): keys 1..8 in this order, the Gedō Statue (the ultimate) last.
+  const KEYS = ['kamui', 'sashiki', 'warp', 'katon', 'gaeshi', 'jukai', 'phase', 'gedo'];
+  const moves = () => KEYS.map(k => ({ label: MOVES[k].label }));
   const aimAt = (z, p) => p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0;
   const H = () => { const S = Spr(); return S && S.height ? S.height('tobi') : 88; };
   // The single eye hole of the mask (where Kamui opens).
@@ -346,12 +349,13 @@
       if (fx.upd && z.health > 0) fx.upd(fx, dt, api);
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.guard = 0; st.hold = 0; st.phase = 0; st.warp = null; st.dash = null; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.guard = 0; st.hold = 0; st.phase = 0; st.warp = null; st.dash = null; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
     }
     st.hold = Math.max(0, st.hold - dt);
+    st.rec = Math.max(0, (st.rec || 0) - dt);
     st.ripple = Math.max(0, st.ripple - dt);
     st.swing = Math.max(0, st.swing - dt);
     st.reactCd -= dt;
@@ -385,9 +389,17 @@
       st.windup = Math.max(0, st.windup - dt);
       if (st.windup === 0) {
         cast(z, st, m, api);
+        st.rec = .4;
         st.timer = MOVES[st.move].after * rand(.9, 1.1) * (z.health < z.maxHealth * .5 ? .82 : 1);
         st.move = '';
         st.tele = [];
+      }
+    } else if (st.hold <= 0 && !st.warp && !st.dash && z.manual) {
+      // Driven by the player: only the requested jutsu; no rotation, no warp-away reflex.
+      st.holdMove = '';
+      if (z.manualCast != null && st.rec <= 0) {
+        const k = KEYS[z.manualCast]; z.manualCast = null;
+        if (k) { st.force = k; announce(z, st, m, api); }
       }
     } else if (st.hold <= 0 && !st.warp && !st.dash) {
       st.holdMove = '';
@@ -402,6 +414,7 @@
     z.kageDash = dashing ? .05 : st.swing > 0 ? st.swing : 0;
     z.bossWindup = st.windup > 0 ? st.windup : st.warp || (st.dash && !dashing) ? .1 : st.hold;
     z.speedScale = st.warp || st.dash ? 0 : .95;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.rec > 0 || !!st.warp || !!st.dash;
   }
 
   // The game skips the body while he is folded into Kamui; drawOverlay paints him itself.
@@ -1571,5 +1584,5 @@
     ctx.restore();
   }
 
-  window.TobiBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.TobiBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

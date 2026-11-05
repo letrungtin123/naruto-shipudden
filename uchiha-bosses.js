@@ -64,6 +64,13 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): each member's jutsu in key order 1..n, ultimate last.
+  const MANUAL = {}, MOVE_LISTS = {};
+  for (const id in members) {
+    MANUAL[id] = [...new Set(members[id].moves)];
+    MOVE_LISTS[id] = MANUAL[id].map(k => ({ id: k, label: MOVES[k].label }));
+  }
+  function moves(z) { return (z && MOVE_LISTS[z.bossId]) || []; }
   // Susanoo moves: how the Susanoo level follows the cast.
   const SUS_OF = { shSus: 'shisui', fist: 'fugaku', fgSus: 'fugaku', magatama: 'indra', sword: 'indra', arrow: 'indra' };
 
@@ -234,11 +241,12 @@
   };
 
   // Ranged jutsu are cast from a distance: if he is in the target's face, he flickers out first.
-  function announce(z, st, m, api) {
-    const move = m.moves[st.casts % m.moves.length];
-    st.casts++;
+  function announce(z, st, m, api, forced) {
+    const move = forced || m.moves[st.casts % m.moves.length];
+    if (!forced) st.casts++;
     const def = MOVES[move], p = api.player;
-    if (p && def.ranged) {
+    // (when the user drives him, he casts from where he stands)
+    if (p && def.ranged && !z.manual) {
       const d = Math.hypot(z.x - p.x, z.y - p.y);
       if (move === 'arrow' || move === 'fgSus' || move === 'shSus') {
         // ultimates are cast from beside the target, a little below it, so the whole Susanoo stands in view
@@ -559,11 +567,11 @@
   }
   // Kotoamatsukami: the genjutsu bends the target's will toward the centre of the eye.
   function kotoUpd(fx, dt, api) {
-    const p = api.player;
+    const p = api.player && api.player.pseudo ? (api.nearestFoe ? api.nearestFoe(fx.x, fx.y, KOTO_R + 60) : null) : api.player;
     if (p) {
       fx.px = R0(p.x); fx.py = R0(p.y);
       fx.pin = Math.hypot(p.x - fx.x, p.y - fx.y) < KOTO_R + 60 ? 1 : 0;
-    }
+    } else if (api.player && api.player.pseudo) fx.pin = 0;
     if (fx.age >= fx.nt && fx.age < fx.T) {
       fx.nt += .32;
       if (p && fx.pin) {
@@ -601,7 +609,7 @@
       if (fx.upd && z.health > 0) fx.upd(fx, dt, api);
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.hide = 0; st.dash = null; st.sus = Math.max(0, st.sus - dt * 2); return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.hide = 0; st.dash = null; st.sus = Math.max(0, st.sus - dt * 2); z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -635,11 +643,19 @@
       }
     } else if (st.hold <= 0) {
       st.holdMove = '';
-      st.timer -= dt;
-      const d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
-      if (p && d > 720 && d < 1600 && st.blinkCd <= 0) { flicker(z, st, api, m.blink === 'fugaku' ? 440 : 380, null, m.blink); st.blinkCd = m.blink === 'shisui' ? 1.8 : 2.6; }
-      else if (st.timer <= 0 && p && d < 900) announce(z, st, m, api);
+      if (z.manual) {
+        // driven by the user: no gap-closing blinks, cast only what was asked for
+        const want = z.manualCast != null && !st.dash ? MANUAL[z.bossId][z.manualCast] : null;
+        if (!st.dash) z.manualCast = null;
+        if (want) announce(z, st, m, api, want);
+      } else {
+        st.timer -= dt;
+        const d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
+        if (p && d > 720 && d < 1600 && st.blinkCd <= 0) { flicker(z, st, api, m.blink === 'fugaku' ? 440 : 380, null, m.blink); st.blinkCd = m.blink === 'shisui' ? 1.8 : 2.6; }
+        else if (st.timer <= 0 && p && d < 900) announce(z, st, m, api);
+      }
     }
+    z.manualBusy = st.windup > 0 || st.hold > 0 || !!st.dash;
     // Susanoo level: rises through a Susanoo windup, holds while it acts, then fades.
     const sm = st.windup > 0 && SUS_OF[st.move] ? st.move : st.hold > 0 && SUS_OF[st.holdMove] ? st.holdMove : '';
     if (sm) { st.susMove = sm; st.sus = Math.min(1, st.sus + dt * (sm === 'arrow' || sm === 'fgSus' || sm === 'shSus' ? .9 : 2.2)); }
@@ -2417,5 +2433,5 @@
 
   function hidden(z) { return !!(z.uc && z.uc.hide > 0 && z.health > 0); }
 
-  window.UchihaBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.UchihaBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

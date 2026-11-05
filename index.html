@@ -45,6 +45,11 @@
             <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
             <span class="headband-label">BẢO VỆ LÀNG NINJA</span>
           </button>
+          <button id="teamButton" class="headband team-start" type="button">
+            <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
+            <span class="headband-label">ĐẤU ĐỘI</span>
+          </button>
+          <p class="team-start-note">Tạo tối đa 10 đội, chọn nhân vật và nơi xuất phát, rồi để các đội tự tìm nhau mà đánh. Điều khiển bất kỳ ai, hoặc chỉ ngồi xem.</p>
           <div class="coop-box" role="group" aria-label="Chơi co-op">
             <div class="coop-title"><span>CO-OP · ĐÁNH BOSS CÙNG BẠN</span><small>TỐI ĐA 4 NGƯỜI</small></div>
             <input id="coopName" class="coop-input" placeholder="Tên ninja của bạn" maxlength="16" autocomplete="off" />
@@ -94,11 +99,15 @@
               <div class="sixpaths-control"><kbd>I</kbd><span>Lục Đạo Tiên Nhân · bay lơ lửng, Cầu Đạo Ngọc sau lưng, máu 10.000, chạy rất nhanh, tự hồi; chuột trái: chuỗi nhẫn thuật Lục Đạo</span></div>
               <div class="susanoo-control"><kbd>Z</kbd><span>100 phân thân Naruto mode Cửu Vĩ cầm Rasengan khổng lồ lao vào đánh địch</span></div>
               <div class="susanoo-control"><kbd>O</kbd><span>Susanoo như Sasuke · người khổng lồ chakra tím bao quanh, giảm 65% sát thương, máu ×40; chuột trái: chuỗi nhẫn thuật Susanoo</span></div>
-              <div><kbd>N</kbd><span>Mở bảng tạo kẻ địch</span></div>
+              <div><kbd>N</kbd><span>Mở bảng tạo kẻ địch · Đấu Đội: thêm quân cho một đội</span></div>
+              <div class="team-control"><kbd>TAB</kbd><span>Đấu Đội: đổi nhân vật đang điều khiển (Shift+Tab lùi lại) · chuột phải vào nhân vật để nhập vai</span></div>
+              <div class="team-control"><kbd>1–8</kbd><span>Đấu Đội: khi điều khiển boss, vĩ thú hay ninja: WASD đi, chuột trái đánh thường, 1–8 tung chiêu thứ 1–8 về phía con trỏ</span></div>
+              <div class="team-control"><kbd>SHIFT</kbd><span>Đấu Đội: lướt (thuấn thân) theo hướng đi hoặc về phía con trỏ · Backspace: thả nhân vật, chuyển sang chỉ xem</span></div>
+              <div class="team-control"><kbd>F</kbd><span>Đấu Đội · chỉ xem: camera tự theo trận đánh lớn nhất · WASD / kéo chuột / bấm bản đồ nhỏ để di chuyển camera</span></div>
               <div><kbd>M</kbd><span>Bản đồ lớn</span></div>
               <div><kbd>P</kbd><span>Bật/tắt đồ hoạ WebGL: phát sáng, sóng xung kích, tách màu</span></div>
               <div><kbd>ESC</kbd><span>Tạm dừng</span></div>
-              <div><kbd>R</kbd><span>Chơi lại</span></div>
+              <div><kbd>R</kbd><span>Chơi lại · Đấu Đội: về màn hình chính</span></div>
             </div>
           </section>
         </div>
@@ -150,6 +159,18 @@
       </div>
     </section>
 
+    <section id="teamScreen" class="panel team-panel" role="dialog" aria-modal="true" aria-labelledby="teamTitle">
+      <div id="teamSetup" class="team-card"></div>
+    </section>
+
+    <section id="teamAddScreen" class="panel team-panel" role="dialog" aria-modal="true" aria-labelledby="teamAddTitle">
+      <div id="teamAdd" class="team-card"></div>
+    </section>
+
+    <section id="teamResultScreen" class="panel" role="dialog" aria-modal="true" aria-labelledby="teamResultTitle">
+      <div id="teamResult" class="hanging-scroll team-result"></div>
+    </section>
+
     <section id="pauseScreen" class="panel">
       <div class="hanging-scroll">
         <div class="eyebrow">TẠM DỪNG</div>
@@ -162,6 +183,7 @@
         <p class="pause-hint"><kbd>ESC</kbd> để quay lại game</p>
         <p id="pauseCoopNote" class="pause-hint" hidden>Đang chơi co-op: trận đấu vẫn tiếp diễn khi bạn mở menu.</p>
         <button id="pauseLeave" class="coop-btn" type="button" hidden>RỜI PHÒNG CO-OP</button>
+        <button id="pauseTeamTitle" class="coop-btn" type="button" hidden>ĐẤU ĐỘI · VỀ MÀN HÌNH CHÍNH</button>
       </div>
     </section>
 
@@ -256,6 +278,9 @@
         <div id="skillG" class="skill skill-beast skill-charge"><kbd>G</kbd><span class="jutsu-mark jm-3" lang="ja" aria-hidden="true">尾獣玉</span><span class="skill-copy"><strong>VĨ THÚ NGỌC</strong><small>Cửu Vĩ đỏ · giữ tụ · thả bắn</small></span></div>
       </div>
 
+      <div id="teamBoard" aria-label="Các đội" hidden></div>
+      <div id="moveBar" role="group" aria-label="Chiêu của nhân vật đang điều khiển" hidden></div>
+
       <div class="minimap-seal">
         <canvas id="minimap" width="180" height="180" aria-label="Bản đồ nhỏ"></canvas>
         <span class="seal-dir dir-n" lang="ja" aria-hidden="true">北</span>
@@ -317,6 +342,8 @@
   <script src="uchiha-bosses.js"></script>
   <script src="pain-paths-bosses.js"></script>
   <script src="duel-bosses.js"></script>
+  <script src="naruto-unit.js"></script>
+  <script src="team-mode.js"></script>
   <script src="coop.js"></script>
   <script src="postfx.js"></script>
   <script src="game.js"></script>

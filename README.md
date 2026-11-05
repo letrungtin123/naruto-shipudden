@@ -216,6 +216,34 @@ Trong bảng **TẠO ĐỊCH** (phím `N`) có công tắc **ĐẠI CHIẾN NINJ
 
 Tắt công tắc để kết thúc đại chiến.
 
+## Đấu Đội
+
+Ở màn hình đầu, bấm **ĐẤU ĐỘI** (cạnh **BẢO VỆ LÀNG NINJA**) để mở màn tạo đội. Chế độ này chỉ chơi đơn: đang ở phòng co-op thì phải rời phòng trước.
+
+**Tạo đội**
+
+- **SỐ ĐỘI**: bấm `−` / `+` để chọn từ 2 đến 10 đội. Mỗi đội có một màu riêng. Bấm vào ô tên để đổi tên đội (mặc định là ĐỘI 1, ĐỘI 2…).
+- Bấm vào một đội để chọn đội đó, rồi bấm nhân vật ở danh sách bên cạnh để thêm vào đội. Mỗi đội có tối đa 10 nhân vật. Danh sách gồm Naruto, mọi boss trong bảng TẠO ĐỊCH (Kage, Akatsuki, Sannin, Hokage, Uchiha, Pain Lục Đạo, Ōtsutsuki…), ninja thường, ninja các làng, Bạch Zetsu và tám Vĩ Thú. Bấm vào một nhân vật trong đội để bỏ nhân vật đó ra.
+- **Điểm xuất phát**: bấm lên bản đồ thế giới để cắm cờ cho đội đang chọn. Nút **CHIẾN TRƯỜNG** rải cờ quanh đồng bằng Đại Chiến; nút **LÀNG LÁ** rải cờ quanh Làng Lá.
+- **Cách chơi**: chọn **ĐIỀU KHIỂN NHÂN VẬT** để vào trận và điều khiển một nhân vật, hoặc **CHỈ XEM** để chỉ ngồi xem các đội đánh nhau. Ở chế độ chỉ xem, bạn không điều khiển ai; nếu có chọn Naruto thì máy điều khiển Naruto.
+- Bấm **BẮT ĐẦU**. Lần tạo đội gần nhất được lưu lại trên máy, lần sau mở ra vẫn còn nguyên.
+
+**Trong trận**
+
+- Trong Đấu Đội mọi nhân vật chạy nhanh hơn chế độ thường (khoảng ×1,45; Vĩ Thú và nhân vật khổng lồ như Thập Vĩ ×1,3, lướt cũng ngắn hơn). Ai cũng biết **lướt** (thuấn thân): một cú lao ngắn để lại bóng mờ và bụi, không xuyên qua nhà hay tường. Máy tự lướt để áp sát đối thủ ở xa, và lướt né sang ngang khi đứng trong vùng cảnh báo nhẫn thuật hoặc vừa trúng đòn nặng.
+- Mỗi nhân vật đứng trên một vòng màu của đội mình, có thanh máu cùng màu. Các nhân vật tự rời điểm xuất phát, đi tìm đội khác gần nhất và đánh nhau. Đòn của một đội không trúng người cùng đội.
+- Naruto đầu tiên được chọn (ở bất kỳ đội nào) là bạn, với đầy đủ phím và nhẫn thuật như chế độ thường, máu gốc 12.000. Những Naruto chọn thêm là Naruto do máy điều khiển. Nếu không chọn Naruto nào, bạn chỉ đứng xem và điều khiển các nhân vật khác.
+- **Điều khiển bất kỳ ai**: `Tab` / `Shift+Tab` chuyển sang nhân vật kế tiếp / trước đó (mọi đội). Chuột phải vào một nhân vật, bấm ảnh của nhân vật trong bảng đội ở góc phải, hoặc bấm vào nhân vật trên bản đồ lớn (`M`) để điều khiển nhân vật đó. Camera đi theo nhân vật bạn đang điều khiển. Nhân vật đó có vòng trắng nhấp nháy và mũi tên trên đầu.
+- `Shift` để lướt theo hướng đang đi (hoặc về phía con trỏ khi đứng yên), hồi 1,6 giây; dùng được cho mọi nhân vật, kể cả Naruto (trong Đấu Đội Shift không còn là chạy nhanh).
+- Khi điều khiển boss, Vĩ Thú hay ninja: `W A S D` để đi, chuột trái để đánh thường về phía con trỏ, các phím `1`–`8` để tung chiêu thứ 1–8 của nhân vật về phía con trỏ. Mỗi chiêu hồi 2,5 giây; chiêu cuối (tuyệt chiêu) hồi 12 giây. Thanh chiêu ở dưới màn hình hiện tên chiêu và thời gian hồi. Ninja thường dùng các nhẫn thuật riêng của mình.
+- **Chỉ xem**: `W A S D` hoặc phím mũi tên để di chuyển camera (giữ `Shift` để nhanh hơn), kéo chuột trái để kéo camera, bấm vào bản đồ nhỏ hoặc bản đồ lớn (`M`) để đưa camera tới đó, `F` để bật/tắt camera tự theo trận đánh lớn nhất. Bấm `Tab` hoặc chuột phải vào một nhân vật để nhập vai bất cứ lúc nào. Đang điều khiển ai đó thì bấm `Backspace` để thả ra và chuyển sang chỉ xem (cũng dùng được khi đã chọn ĐIỀU KHIỂN NHÂN VẬT).
+- Khi bạn điều khiển nhân vật khác (hoặc đang chỉ xem), máy tự điều khiển Naruto: lao vào địch gần nhất, đánh bằng trượng, tung Rasengan, Rasen Shuriken, hỏa cầu và Ảnh Phân Thân.
+- Nhân vật đang điều khiển bị hạ thì bạn chuyển sang một nhân vật còn sống của cùng đội (hết thì sang đội khác).
+- Bảng đội ở góc phải hiện số nhân vật còn lại và số lần hạ gục của từng đội. Bấm **CÁC ĐỘI** để thu gọn bảng.
+- `N` (hoặc nút **THÊM QUÂN**) mở bảng thêm quân giữa trận: chọn đội, số lượng (1–10) và nơi xuất hiện (cờ của đội hoặc một điểm bấm trên bản đồ), rồi bấm nhân vật để thêm ngay.
+- Trong Đấu Đội không có báo động làng và không có đợt địch.
+- Khi chỉ còn một đội có người đứng, màn kết quả hiện đội thắng và số lần hạ gục của từng đội. Bấm **CHƠI LẠI** để đánh lại với đội vừa tạo, **VỀ MÀN TẠO ĐỘI** để sửa đội, hoặc **MÀN HÌNH CHÍNH**. Phím `R` trong trận đưa bạn về màn hình chính.
+
 ## Điều khiển
 
 - `W A S D`: di chuyển
@@ -240,8 +268,11 @@ Tắt công tắc để kết thúc đại chiến.
 - `G`: Vĩ Thú Ngọc khi đang ở dạng Cửu Vĩ đỏ (giữ để tụ lực, thả để bắn)
 - `Space`: giữ tụ Rasengan, thả để đánh
 - `X`: giữ tụ Rasen Shuriken, thả để phóng
-- `N`: mở bảng tạo kẻ địch
+- `N`: mở bảng tạo kẻ địch (Đấu Đội: thêm quân)
+- `Tab` / `Shift+Tab` (Đấu Đội): đổi nhân vật đang điều khiển; chuột phải vào một nhân vật để điều khiển nhân vật đó
+- `1`–`8` (Đấu Đội, khi điều khiển boss, Vĩ Thú hay ninja): tung chiêu thứ 1–8 về phía con trỏ
+- `Shift` (Đấu Đội): lướt · `Backspace`: thả nhân vật, chuyển sang chỉ xem · `F` (khi chỉ xem): camera tự theo trận đánh
 - `M`: mở bản đồ lớn của thế giới; bấm vào bản đồ để dịch chuyển
 - `P`: bật / tắt đồ hoạ WebGL (phát sáng, sóng xung kích)
 - `Esc`: tạm dừng / tiếp tục
-- `R`: chơi lại
+- `R`: chơi lại (Đấu Đội: về màn hình chính)

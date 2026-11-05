@@ -72,6 +72,17 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): keys 1..n per member, ultimate last.
+  const MANUAL = {
+    raikage3: ['kokuton', 'rush', 'nukite4', 'quake', 'body', 'nukite1'],
+    kazekage3: ['drizzle', 'arms', 'assault', 'pull', 'spikes', 'world'],
+    rasa: ['goldwave', 'spears', 'pyramid', 'hammer', 'shield', 'tsunami']
+  };
+  const MANUAL_LIST = {};
+  for (const id in MANUAL) MANUAL_LIST[id] = MANUAL[id].map(k => ({ label: MOVES[k].label }));
+  function moves(z) { return (z && MANUAL_LIST[z.bossId]) || []; }
+  // The unit a pull/push works on: api.player, or (manual mode: a cursor pseudo-target) the nearest foe.
+  const victim = (api, x, y, r) => { const p = api.player; if (p && !p.pseudo) return p; return api.nearestFoe ? api.nearestFoe(x, y, r) : null; };
 
   // Raikage
   const KOK_LEN = 900, KOK_W = 38, KOK_SPEED = 3200;
@@ -315,7 +326,7 @@
         addFx(st, { kind: 'pull', x: R1(x), y: R1(y), T: PULL_T, dur: PULL_T + 1.7 });
         // the ticks stop early enough that the spike ring is not swallowed by the shove's i-frames
         for (let t = .2; t < PULL_T - .7; t += .3) later(st, t, api => {
-          const p = api.player;
+          const p = victim(api, x, y, PULL_R + 40);
           if (!p) return;
           const d = Math.hypot(p.x - x, p.y - y);
           if (d > PULL_R + 40) return;
@@ -463,7 +474,7 @@
       const aa = fx.a + (k / 6 - .5) * GW_HALF * 2;
       api.strike(fx.x + Math.cos(aa) * r, fx.y + Math.sin(aa) * r, 72, fx.dmg * 1.6, null, null, true);
     }
-    const p = api.player;
+    const p = fx.pushed ? null : victim(api, fx.x, fx.y, GW_LEN);
     if (p && !fx.pushed && inCone(p, fx.x, fx.y, fx.a, GW_LEN, GW_HALF)) {
       const d = Math.hypot(p.x - fx.x, p.y - fx.y);
       if (Math.abs(d - r) < 60) { fx.pushed = 1; api.knockback({ x: fx.x, y: fx.y }, d + 30, 150, 0); }
@@ -570,7 +581,7 @@
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
     for (let i = st.ghosts.length - 1; i >= 0; i--) if ((st.ghosts[i].age += dt) > .32) st.ghosts.splice(i, 1);
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.dash = null; st.jump = null; st.regen = null; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; z.manualBusy = false; st.ev.length = 0; st.hold = 0; st.dash = null; st.jump = null; st.regen = null; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -611,8 +622,15 @@
       st.holdMove = '';
       st.timer -= dt;
       const p = api.player, d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
-      if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
+      if (z.manual) {
+        if (z.manualCast != null) {
+          const k = (MANUAL[z.bossId] || [])[z.manualCast];
+          z.manualCast = null;
+          if (k) { st.force = k; announce(z, st, m, api); }
+        }
+      } else if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
     }
+    z.manualBusy = !!(st.windup > 0 || st.hold > 0 || st.dash || st.jump || st.ev.length);
     const guardK = z.bossId === 'raikage3' ? .12 : .2;
     z.armorScale = m.armor * (st.guard > 0 ? guardK : st.armor > 0 ? .85 : 1);
     z.kageDash = st.dash || st.jump ? .05 : 0;
@@ -2009,5 +2027,5 @@
     ctx.restore();
   }
 
-  window.EdoKageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, bodyLift };
+  window.EdoKageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, bodyLift, moves };
 })();

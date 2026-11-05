@@ -69,6 +69,15 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): each member's jutsu in key order 1..n, ultimate last.
+  const MANUAL = {}, MOVE_LISTS = {};
+  for (const id in members) {
+    MANUAL[id] = [...new Set(members[id].moves)];
+    MOVE_LISTS[id] = MANUAL[id].map(k => ({ id: k, label: MOVES[k].label }));
+  }
+  function moves(z) { return (z && MOVE_LISTS[z.bossId]) || []; }
+  // While the user drives the boss, api.player is a cursor point: grabs take the nearest hostile unit instead.
+  const victim = (api, x, y, r) => { const p = api.player; return p && p.pseudo ? (api.nearestFoe ? api.nearestFoe(x, y, r) : null) : p; };
 
   const PANTHER_SPEED = 860, PANTHER_RUN = 1.3;
   const KOGA_LEN = 1150, KOGA_W = 40, KOGA_T = 1.15, KOGA_SPAN = .42;
@@ -288,9 +297,9 @@
     return [];
   }
 
-  function announce(z, st, m, api) {
-    const move = m.moves[st.casts % m.moves.length];
-    st.casts++;
+  function announce(z, st, m, api, forced) {
+    const move = forced || m.moves[st.casts % m.moves.length];
+    if (!forced) st.casts++;
     const def = MOVES[move], p = api.player;
     st.move = move; st.windup = st.windMax = def.windup;
     st.aim = R2(aimAt(z, p)); st.tx = R(p ? p.x : z.x); st.ty = R(p ? p.y : z.y);
@@ -610,7 +619,7 @@
       if (fx.age < PRISON_T) {
         if ((fx.k -= dt) > 0) return;
         fx.k = .25;
-        const p = api.player;
+        const p = victim(api, fx.x, fx.y, PRISON_R + 20);
         if (!p) return;
         const d = Math.hypot(p.x - fx.x, p.y - fx.y);
         if (d < PRISON_R + 20) {
@@ -719,12 +728,14 @@
     if (d.last && d.mist) { st.hide = 0; addFx(st, { kind: 'mreveal', x: R(z.x), y: R(z.y), dur: 1 }); }
   }
   function patchUpdate(z, st, dt, api) {
-    const p = api.player;
+    const pseudo = !!(api.player && api.player.pseudo);
+    let p = api.player;
     st.trap = null;
     for (let i = st.patches.length - 1; i >= 0; i--) {
       const q = st.patches[i];
       q.life -= dt;
       if (q.life <= 0) { st.patches.splice(i, 1); continue; }
+      if (pseudo && q.max - q.life >= .35) p = victim(api, q.x, q.y, q.r + 12);
       if (!p || q.max - q.life < .35) continue;
       const d = Math.hypot(p.x - q.x, p.y - q.y);
       if (d > q.r + (p.r || 12) * .4) continue;
@@ -741,7 +752,7 @@
   // Pull the local ninja toward (x, y) without a shove (a shove would grant invulnerability).
   // Teammates' ninjas live in their own browsers and are left alone.
   function drag(api, p, x, y, sp, dt) {
-    if (!p || p.remote) return;
+    if (!p || p.remote || p.pseudo) return;
     const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy);
     if (d < 2) return;
     const m = Math.min(d, sp * dt), mx = dx / d * m, my = dy / d * m, r = p.r || 12;
@@ -764,7 +775,7 @@
     }
     for (let i = st.ghosts.length - 1; i >= 0; i--) if ((st.ghosts[i].age += dt) > .32) st.ghosts.splice(i, 1);
     if (st.patches.length) patchUpdate(z, st, dt, api); else st.trap = null;
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.dash = null; st.hide = 0; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.dash = null; st.hide = 0; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const e = st.ev[i];
       if ((e.t -= dt) <= 0) { st.ev.splice(i, 1); const h = EV[e.h]; if (h) h(z, st, api, e.a); }
@@ -782,10 +793,18 @@
       }
     } else if (st.hold <= 0 && !st.dash) {
       st.holdMove = '';
-      st.timer -= dt;
-      const p = api.player, d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
-      if (st.timer <= 0 && p && d < 950) announce(z, st, m, api);
+      if (z.manual) {
+        // driven by the user: cast only what was asked for, aimed at the cursor
+        const want = z.manualCast != null ? MANUAL[z.bossId][z.manualCast] : null;
+        z.manualCast = null;
+        if (want) announce(z, st, m, api, want);
+      } else {
+        st.timer -= dt;
+        const p = api.player, d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
+        if (st.timer <= 0 && p && d < 950) announce(z, st, m, api);
+      }
     }
+    z.manualBusy = st.windup > 0 || st.hold > 0 || !!st.dash;
     z.kageDash = st.dash ? .05 : 0;
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
     z.speedScale = st.hide > 0 ? .4 : .9;
@@ -2188,5 +2207,5 @@
 
   function hidden(z) { const st = z.nk; return !!(st && st.hide > 0 && !st.dash); }
 
-  window.NewKageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.NewKageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

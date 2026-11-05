@@ -76,6 +76,24 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): each path's jutsu in key order 1..n, ultimate last.
+  const MANUAL = {
+    pain_asura: ['a_missiles', 'a_laser', 'a_blades', 'a_rocket', 'a_storm'],
+    pain_human: ['h_soul', 'h_rods', 'h_read', 'h_field'],
+    pain_animal: ['n_dog', 'n_rhino', 'n_bird', 'n_cham', 'n_stampede'],
+    pain_preta: ['p_drain', 'p_absorb', 'p_vortex', 'p_spit', 'p_field'],
+    pain_naraka: ['k_tongue', 'k_rods', 'k_judge', 'k_heal', 'k_revive', 'k_bite']
+  };
+  const MOVE_LISTS = {};
+  for (const id in MANUAL) MOVE_LISTS[id] = MANUAL[id].map(k => ({ id: k, label: MOVES[k].label }));
+  function moves(z) { return (z && MOVE_LISTS[z.bossId]) || []; }
+  // While the user drives a path, api.player is a cursor point: grabs and drains take the nearest
+  // hostile unit instead, and a latch keeps hold of the unit it caught (HELD: fx -> unit).
+  const pseudoOf = api => !!(api.player && api.player.pseudo);
+  const victim = (api, x, y, r) => pseudoOf(api) ? (api.nearestFoe ? api.nearestFoe(x, y, r) : null) : api.player;
+  const HELD = new WeakMap();
+  function held(api, fx) { const v = HELD.get(fx); return v ? (v.health > 0 ? v : null) : api.player; }
+  function grab(api, fx, v) { if (pseudoOf(api) && v) HELD.set(fx, v); return fx; }
 
   const MIS_R = 72, LASER_LEN = 1100, LASER_W = 36, FIST_SPEED = 1500, FIST_BLAST = 150, SPIN_R = 95, DRILL_R = 130;
   const STORM_LEN = 1150, STORM_HALF = .95, STORM_R = 560, STORM_T = 2.5;
@@ -103,7 +121,7 @@
     const out = [], t = nowS();
     for (const [o, at] of TEAM) {
       if (t - at > 3) { TEAM.delete(o); continue; }
-      if (o !== z && t - at <= maxAge && members[o.bossId]) out.push(o);
+      if (o !== z && t - at <= maxAge && members[o.bossId] && o.team === z.team) out.push(o);
     }
     return out;
   }
@@ -231,9 +249,13 @@
     return best;
   }
 
-  function announce(z, st, m, api) {
+  function announce(z, st, m, api, forced) {
     let move = st.force;
-    if (move && MOVES[move]) st.force = null;
+    if (forced) {
+      // the user's pick; with no fallen path to raise, the King of Hell repairs instead
+      move = forced === 'k_revive' && !healTarget(z, true) ? 'k_heal' : forced;
+      st.force = null;
+    } else if (move && MOVES[move]) st.force = null;
     else {
       move = m.moves[st.casts % m.moves.length]; st.casts++;
       if (move === 'k_heal' && !healTarget(z, false)) { move = m.moves[st.casts % m.moves.length]; st.casts++; }
@@ -243,7 +265,7 @@
     st.aim = +aimAt(z, p).toFixed(3); st.tx = R(p ? p.x : z.x); st.ty = R(p ? p.y : z.y);
     st.dir = Math.random() < .5 ? 1 : -1; st.side = Math.random() < .5 ? 1 : -1;
     if (move === 'k_heal' || move === 'k_revive') {
-      const o = move === 'k_revive' ? healTarget(z, true) : healTarget(z, false);
+      const o = move === 'k_revive' ? healTarget(z, true) : healTarget(z, false) || (forced ? z : null);
       st.tid = o ? o.id : 0;
       if (o) { st.tx = R(o.x); st.ty = R(o.y); if (move === 'k_revive') o.deathTimer = Math.max(o.deathTimer, def.windup + 1.8); }
     }
@@ -311,10 +333,10 @@
       }
       // ---------------------------------------------------------------- Human
       case 'h_soul': {
-        const p = api.player, x1 = x + ca * (SOUL_LEN + 20), y1 = y + sa * (SOUL_LEN + 20);
+        const x1 = x + ca * (SOUL_LEN + 20), y1 = y + sa * (SOUL_LEN + 20), p = victim(api, (x + x1) / 2, (y + y1) / 2, SOUL_LEN / 2 + 60);
         if (p && segDist(p.x, p.y, x, y, x1, y1) < 40 + (p.r || 12)) {
           st.hold = 2.5; st.holdMove = 'h_soul';
-          addFx(st, { kind: 'soul', live: 1, px: R(p.x), py: R(p.y), T: 2.3, tick: .3, rip: 0, dur: 2.3 + 1.2, upd: soulUpd });
+          grab(api, addFx(st, { kind: 'soul', live: 1, px: R(p.x), py: R(p.y), T: 2.3, tick: .3, rip: 0, dur: 2.3 + 1.2, upd: soulUpd }), p);
           api.shake(6);
         } else addFx(st, { kind: 'grasp', x: R(x + ca * SOUL_LEN), y: R(y + sa * SOUL_LEN), a, dur: 1.1 });
         break;
@@ -405,7 +427,7 @@
           later(st, .6, api => {
             const x1 = nx + Math.cos(ta) * TONGUE_LEN, y1 = ny + Math.sin(ta) * TONGUE_LEN;
             api.line(nx, ny, x1, y1, 34, D * 1.5, null);
-            const q = api.player;
+            const q = victim(api, (nx + x1) / 2, (ny + y1) / 2, TONGUE_LEN / 2 + 40);
             if (q && segDist(q.x, q.y, nx, ny, x1, y1) < 34 + 14) {
               const dq = Math.hypot(q.x - nx, q.y - ny);
               api.knockback({ x: nx, y: ny }, dq + 20, -Math.max(0, Math.min(260, dq - 90)), 0);
@@ -464,7 +486,7 @@
         later(st, .28, api => {
           const x1 = kx + Math.cos(ka) * len, y1 = ky + Math.sin(ka) * len;
           api.line(kx, ky, x1, y1, 40, D * 1.4, null);
-          const q = api.player;
+          const q = victim(api, (kx + x1) / 2, (ky + y1) / 2, len / 2 + 50);
           if (q && segDist(q.x, q.y, kx, ky, x1, y1) < 40 + 14) {
             const dq = Math.hypot(q.x - kx, q.y - ky);
             api.knockback({ x: kx, y: ky }, dq + 20, -Math.max(0, Math.min(300, dq - 95)), 0);
@@ -563,7 +585,7 @@
   }
   function soulUpd(fx, dt, api, z, st) {
     if (!fx.live) return;
-    const p = api.player;
+    const p = held(api, fx);
     if (!p) { fx.live = 0; return; }
     fx.px = R(p.x); fx.py = R(p.y);
     const d = Math.hypot(p.x - z.x, p.y - z.y);
@@ -599,10 +621,10 @@
     }
     if (fx.done) return;
     fx.done = 1; fx.cx = R(z.x); fx.cy = R(z.y);
-    const p = api.player, d = p ? Math.hypot(p.x - z.x, p.y - z.y) : 1e9;
+    const p = victim(api, z.x, z.y, 125), d = p ? Math.hypot(p.x - z.x, p.y - z.y) : 1e9;
     if (d < 125) {
       st.hold = 1.9; st.holdMove = 'p_drain';
-      addFx(st, { kind: 'drain', live: 1, px: R(p.x), py: R(p.y), T: 1.8, tick: .15, n: 0, dur: 1.8 + .9, upd: drainUpd });
+      grab(api, addFx(st, { kind: 'drain', live: 1, px: R(p.x), py: R(p.y), T: 1.8, tick: .15, n: 0, dur: 1.8 + .9, upd: drainUpd }), p);
     } else {
       api.strike(z.x, z.y, 105, api.damage * 1.2, null, 'earth', true);
       api.shake(8);
@@ -610,7 +632,7 @@
   }
   function drainUpd(fx, dt, api, z, st) {
     if (!fx.live) return;
-    const p = api.player;
+    const p = held(api, fx);
     if (!p) { fx.live = 0; return; }
     fx.px = R(p.x); fx.py = R(p.y);
     const d = Math.hypot(p.x - z.x, p.y - z.y);
@@ -634,11 +656,12 @@
     }
   }
   function orbsUpd(fx, dt, api) {
-    const p = api.player, d = fx.age * ORB_SPEED;
+    const p = api.player, d = fx.age * ORB_SPEED, pseudo = pseudoOf(api);
     for (const o of fx.list) {
       if (o[1] >= 0) continue;
       const ox = fx.x + Math.cos(o[0]) * d, oy = fx.y + Math.sin(o[0]) * d;
-      if (d >= ORB_LEN || api.blocked(ox, oy, 6) || (p && Math.hypot(p.x - ox, p.y - oy) < 40 + (p.r || 12))) {
+      const touch = pseudo ? !!(api.nearestFoe && api.nearestFoe(ox, oy, 52)) : p && Math.hypot(p.x - ox, p.y - oy) < 40 + (p.r || 12);
+      if (d >= ORB_LEN || api.blocked(ox, oy, 6) || touch) {
         o[1] = +fx.age.toFixed(2); o[2] = R(Math.min(d, ORB_LEN));
         api.strike(ox, oy, 85, api.damage * 1.3, null, null, true);
       }
@@ -650,7 +673,7 @@
       if ((fx.tick -= dt) <= 0) {
         fx.tick = .5;
         api.knockback(z, PF_R, -36, api.damage * .45);
-        const p = api.player;
+        const p = victim(api, z.x, z.y, PF_R);
         if (p && Math.hypot(p.x - z.x, p.y - z.y) < PF_R) z.health = Math.min(z.maxHealth, z.health + z.maxHealth * .012);
         for (const o of team(z)) if (o.health > 0 && o.pp && Math.hypot(o.x - z.x, o.y - z.y) < 800) o.pp.shield = 1.2;
       }
@@ -690,14 +713,15 @@
       if (fx.upd && z.health > 0) fx.upd(fx, dt, api, z, st);
       if (fx.age >= fx.dur) { const j = st.fx.indexOf(fx); if (j >= 0) st.fx.splice(j, 1); }
     }
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.guard = 0; st.hide = 0; st.windup = 0; st.move = ''; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.guard = 0; st.hide = 0; st.windup = 0; st.move = ''; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if (ev && (ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
     }
     // Rinnegan vision: track how the target moves (mind reading predicts where it will be).
     const p = api.player;
-    if (p) {
+    if (p && p.pseudo) { st.pv[0] = st.pv[1] = 0; st.pl = [R(p.x), R(p.y)]; }
+    else if (p) {
       if (st.pl && dt > 0) {
         const vx = (p.x - st.pl[0]) / dt, vy = (p.y - st.pl[1]) / dt;
         if (Math.abs(vx) < 2500 && Math.abs(vy) < 2500) { st.pv[0] = R(lerp(st.pv[0], vx, .12)); st.pv[1] = R(lerp(st.pv[1], vy, .12)); }
@@ -729,6 +753,12 @@
         st.move = '';
         st.tele = [];
       }
+    } else if (st.hold <= 0 && !st.dash && z.manual) {
+      // driven by the user: no reflex seal or revive, cast only what was asked for
+      st.holdMove = '';
+      const want = z.manualCast != null && st.guard <= 0 ? MANUAL[z.bossId][z.manualCast] : null;
+      if (st.guard <= 0) z.manualCast = null;
+      if (want) announce(z, st, m, api, want);
     } else if (st.hold <= 0 && !st.dash) {
       st.holdMove = '';
       st.timer -= dt;
@@ -743,11 +773,12 @@
     // Human and Animal fight from range: they hold their distance and back off when crowded.
     let spd = st.guard > 0 || fielding ? .45 : .9;
     const keep = KEEP[z.bossId];
-    if (keep && p && st.windup <= 0 && st.hold <= 0 && !st.dash) {
+    if (keep && p && !z.manual && st.windup <= 0 && st.hold <= 0 && !st.dash) {
       const d = Math.hypot(z.x - p.x, z.y - p.y);
       if (d < keep) { spd = .06; if (d < keep - 90 && d > 1) api.move((z.x - p.x) / d * 140 * dt, (z.y - p.y) / d * 140 * dt); }
     }
     z.speedScale = spd;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.dash > 0 || st.guard > 0;
   }
 
   // ------------------------------------------------------------------ cached art
@@ -2127,5 +2158,5 @@
 
   const hidden = z => !!(z.pp && z.pp.hide > 0 && z.health > 0);
 
-  window.PainPathsBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.PainPathsBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

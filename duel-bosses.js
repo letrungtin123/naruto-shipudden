@@ -72,6 +72,13 @@
   };
   const moveLabels = {};
   for (const id in MOVES) for (const k in MOVES[id]) moveLabels[id + ':' + k] = MOVES[id][k].label;
+  // Manual control (team mode): each fighter's moves in key order 1..n, ultimate last.
+  const MANUAL = {}, MOVE_LISTS = {};
+  for (const id in members) {
+    MANUAL[id] = [...new Set(members[id].moves)];
+    MOVE_LISTS[id] = MANUAL[id].map(k => ({ id: k, label: MOVES[id][k].label }));
+  }
+  function moves(z) { return (z && MOVE_LISTS[z.bossId]) || []; }
 
   function state(z) {
     return z.dv || (z.dv = { t: 0, casts: 0, timer: 1.1, move: '', windup: 0, windMax: 1, aim: 0, tx: z.x, ty: z.y, tele: [], ev: [], fx: [],
@@ -164,9 +171,9 @@
     return [];
   }
 
-  function announce(z, st, m, api) {
-    const id = z.bossId, move = m.moves[st.casts % m.moves.length];
-    st.casts++;
+  function announce(z, st, m, api, forced) {
+    const id = z.bossId, move = forced || m.moves[st.casts % m.moves.length];
+    if (!forced) st.casts++;
     const def = MOVES[id][move], p = api.player;
     st.move = move; st.windup = st.windMax = def.windup;
     st.aim = r1(p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0);
@@ -217,7 +224,8 @@
         addFx(st, { kind: 'chain', x: Math.round(x0), y: Math.round(y0), a: r1(a), len, sp, dur: 1.35 });
         for (let d0 = 0; d0 < len; d0 += 190) later(st, d0 / sp, api => api.line(x0 + ca * d0, y0 + sa * d0, x0 + ca * (d0 + 190), y0 + sa * (d0 + 190), 40, D * 1.7, d0 > 380 ? 'blade' : null));
         later(st, len / sp + .02, api => {
-          const q = api.player;
+          const p0 = api.player;
+          const q = p0 && p0.pseudo ? (api.nearestFoe ? api.nearestFoe(x0 + ca * len / 2, y0 + sa * len / 2, len / 2 + 70) : null) : p0;
           if (q && segDist(q.x, q.y, x0, y0, x0 + ca * len, y0 + sa * len) < 70) {
             const dd = Math.hypot(q.x - z.x, q.y - z.y);
             api.knockback(z, len + 80, -Math.min(520, Math.max(0, dd - 110)), D * .4);
@@ -639,6 +647,7 @@
       z.bossWindup = 0; z.kageDash = 0; st.dash = null; st.arc = null; st.ev.length = 0; st.windup = 0; st.move = ''; st.lift = 0; st.vanish = 0;
       if (st.ib) { addFx(st, { kind: 'poof', x: st.ib.x, y: st.ib.y, r: 300, dur: 1.4 }); st.ib = null; }
       z.speedScale = 1;
+      z.manualBusy = false;
       return;
     }
     for (let i = st.ev.length - 1; i >= 0; i--) {
@@ -698,11 +707,19 @@
         st.tele = [];
       }
     } else if (!st.dash && !st.arc && !st.ib && st.hold <= 0) {
-      st.timer -= dt;
-      const p = api.player;
-      if (st.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 950) announce(z, st, m, api);
+      if (z.manual) {
+        // driven by the user: cast only what was asked for, aimed at the cursor
+        const want = z.manualCast != null ? MANUAL[z.bossId][z.manualCast] : null;
+        z.manualCast = null;
+        if (want) announce(z, st, m, api, want);
+      } else {
+        st.timer -= dt;
+        const p = api.player;
+        if (st.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 950) announce(z, st, m, api);
+      }
     }
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || !!st.dash || !!st.arc || !!st.ib;
   }
 
   // When the boss dies the game stops calling update; keep its effects playing out.
@@ -1553,5 +1570,5 @@
   const hidden = z => !!(z.dv && z.dv.vanish > 0 && z.health > 0);
   const bodyLift = z => (z.dv && z.health > 0 ? z.dv.lift || 0 : 0);
 
-  window.DuelBosses = { members, order, pick, update, draw, drawOverlay, hidden, bodyLift, moveLabels };
+  window.DuelBosses = { members, order, pick, update, draw, drawOverlay, hidden, bodyLift, moveLabels, moves };
 })();

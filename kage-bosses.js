@@ -56,6 +56,10 @@
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
   const byVillage = { suna: 'gaara', kiri: 'mei', kumo: 'ay', iwa: 'onoki' };
+  // Team battle: the member's jutsu in key order 1..n (each once; the rotation's last new jutsu is the ultimate).
+  const MOVE_LIST = {};
+  for (const id in members) MOVE_LIST[id] = [...new Set(members[id].moves)].map(k => ({ id: k, label: MOVES[k].label }));
+  function moves(z) { return (z && MOVE_LIST[z.bossId]) || []; }
 
   const SAND = [[1, '#7a5a2e'], [.84, '#a88246'], [.66, '#c9a262'], [.46, '#e2c487'], [.25, '#f6e6bc']];
   const LAVA = [[1, '#5a0d04'], [.84, '#b0220a'], [.66, '#ff5a14'], [.46, '#ffa030'], [.25, '#ffe9a0']];
@@ -131,9 +135,12 @@
     return [];
   }
 
-  function announce(z, st, m, api) {
-    let move = st.force;
-    if (move && MOVES[move]) st.force = null; else { move = m.moves[st.casts % m.moves.length]; st.casts++; }
+  function announce(z, st, m, api, forced) {
+    let move = forced; // a manual cast leaves the AI rotation where it was
+    if (!move) {
+      move = st.force;
+      if (move && MOVES[move]) st.force = null; else { move = m.moves[st.casts % m.moves.length]; st.casts++; }
+    }
     const def = MOVES[move], p = api.player;
     st.move = move; st.windup = st.windMax = def.windup;
     st.aim = aimAt(z, p); st.tx = p ? p.x : z.x; st.ty = p ? p.y : z.y;
@@ -365,7 +372,7 @@
       if (s.b.life <= 0 || (s.b.x === s.px && s.b.y === s.py)) { st.shots.splice(i, 1); continue; }
       s.px = s.b.x; s.py = s.b.y;
     }
-    if (z.health <= 0) { z.kageWindup = 0; z.kageDash = 0; st.dash = st.jump = null; st.ev.length = 0; return; }
+    if (z.health <= 0) { z.kageWindup = 0; z.kageDash = 0; st.dash = st.jump = null; st.ev.length = 0; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -415,11 +422,19 @@
         st.move = '';
         st.tele = [];
       }
+    } else if (z.manual) {
+      // Manual control: only the user's key starts a jutsu (game.js expires stale requests).
+      if (z.manualCast != null && !st.dash && !st.jump && st.hold <= 0) {
+        const mv = MOVE_LIST[z.bossId][z.manualCast];
+        z.manualCast = null;
+        if (mv) announce(z, st, m, api, mv.id);
+      }
     } else if (!st.dash && !st.jump) {
       st.timer -= dt;
       const p = api.player;
       if (st.timer <= 0 && p && Math.hypot(z.x - p.x, z.y - p.y) < 820) announce(z, st, m, api);
     }
+    z.manualBusy = st.windup > 0 || st.hold > 0 || !!st.dash || !!st.jump;
     z.kageWindup = st.windup > 0 ? st.windup : st.hold;
   }
 
@@ -1552,5 +1567,5 @@
     ctx.restore();
   }
 
-  window.KageBosses = { members, order, byVillage, moveLabels, pick, update, draw, drawOverlay, bodyLift };
+  window.KageBosses = { members, order, byVillage, moveLabels, pick, update, draw, drawOverlay, bodyLift, moves };
 })();

@@ -48,6 +48,12 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): keys 1..8, ultimate last. Izanagi is a key here instead of a reflex.
+  const MANUAL = ['renpa', 'kunai', 'daigyoku', 'baku', 'mokuton', 'root', 'izanagi', 'fuin'];
+  const MANUAL_LIST = MANUAL.map(k => ({ label: MOVES[k].label }));
+  function moves() { return MANUAL_LIST; }
+  // The unit a pull works on: api.player, or (manual mode: a cursor pseudo-target) the nearest foe.
+  const victim = (api, x, y, r) => { const p = api.player; if (p && !p.pseudo) return p; return api.nearestFoe ? api.nearestFoe(x, y, r) : null; };
 
   const RENPA_LEN = 1000, RENPA_SPEED = 1500, RENPA_HALF = .52;
   const DG_LEN = 1020, DG_SPEED = 760, DG_R = 92, DG_BURST = 300;
@@ -176,7 +182,7 @@
         const f = addFx(st, { kind: 'baku', bx: b.bx, by: b.by, f: b.f, mx: b.mx, my: b.my, a: b.a, T: BAKU_T, dur: BAKU_T + 1.5 });
         st.hold = BAKU_T + .3; st.holdMove = 'baku';
         for (let t = .75; t <= BAKU_T - .64; t += .5) later(st, t, api => {
-          const p = api.player;
+          const p = victim(api, f.mx, f.my, BAKU_LEN + 60);
           if (!p || !inCone(p, f.mx, f.my, f.a, BAKU_LEN + 60, BAKU_HALF + .08)) return;
           const d = Math.hypot(p.x - f.mx, p.y - f.my);
           api.knockback({ x: f.mx, y: f.my }, BAKU_LEN + 120, -Math.min(140, Math.max(0, d - 70)), D * .22);
@@ -234,7 +240,7 @@
         addFx(st, { kind: 'fuin', x, y, R: FUIN_R, T: FUIN_T, dur: FUIN_T + 2.6 });
         st.hold = FUIN_T + .35; st.holdMove = 'fuin';
         for (let t = .45; t < FUIN_T - .54; t += .55) later(st, t, api => {
-          const p = api.player;
+          const p = victim(api, x, y, FUIN_R + 160);
           if (!p) return;
           const d = Math.hypot(p.x - x, p.y - y);
           api.knockback({ x, y }, FUIN_R + 160, -Math.min(100, Math.max(0, d - 60)), D * .3);
@@ -359,7 +365,7 @@
       api.burst(z.x, z.y - 40, '#ff4050', 14);
       api.shake(8);
     }
-    if (iz.t >= IZ_END) { st.iz = null; st.force = 'kunai'; st.timer = 0; }
+    if (iz.t >= IZ_END) { st.iz = null; if (!z.manual) { st.force = 'kunai'; st.timer = 0; } }
   }
 
   // ------------------------------------------------------------------ update
@@ -375,19 +381,20 @@
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
     for (let i = st.ghosts.length - 1; i >= 0; i--) if ((st.ghosts[i].age += dt) > .32) st.ghosts.splice(i, 1);
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.dash = null; st.iz = null; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; z.manualBusy = false; st.ev.length = 0; st.hold = 0; st.dash = null; st.iz = null; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
     }
 
     // Izanagi: the blow that should have killed him becomes an illusion; he stands up elsewhere.
-    if (!st.iz && st.izLeft > 0 && z.health < z.maxHealth * IZ_T[3 - st.izLeft]) triggerIz(z, st, api);
+    if (!z.manual && !st.iz && st.izLeft > 0 && z.health < z.maxHealth * IZ_T[3 - st.izLeft]) triggerIz(z, st, api);
     if (st.iz) {
       izUpdate(z, st, dt, api);
       z.armorScale = st.iz ? 1e-4 : m.armor;
       z.kageDash = st.iz ? .05 : 0;
       z.bossWindup = 0;
+      z.manualBusy = !!st.iz;
       return;
     }
     z.armorScale = m.armor;
@@ -406,8 +413,16 @@
       st.holdMove = '';
       st.timer -= dt;
       const p = api.player, d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
-      if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
+      if (z.manual) {
+        if (z.manualCast != null) {
+          const k = MANUAL[z.manualCast];
+          z.manualCast = null;
+          if (k === 'izanagi') { if (st.izLeft > 0) triggerIz(z, st, api); }
+          else if (k) { st.force = k; announce(z, st, m, api); }
+        }
+      } else if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
     }
+    z.manualBusy = !!(st.iz || st.windup > 0 || st.hold > 0 || st.dash || st.ev.length);
     z.kageDash = st.dash ? .05 : 0;
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
     z.speedScale = .9;
@@ -1595,5 +1610,5 @@
 
   function hidden(z) { const st = z.dz; return !!(st && st.iz && !st.iz.moved); }
 
-  window.DanzoBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.DanzoBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

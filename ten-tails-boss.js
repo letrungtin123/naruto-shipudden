@@ -47,6 +47,14 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): keys 1..8, ultimate last. Below half health key 1 becomes the evolution roar.
+  const MANUAL = ['roar', 'tbb', 'sweep', 'rapid', 'wood', 'clones', 'meteor', 'mega'];
+  const MANUAL_LIST = MANUAL.map(k => ({ label: MOVES[k].label }));
+  const MANUAL_EVO = [{ label: MOVES.evolve.label }].concat(MANUAL_LIST.slice(1));
+  const canEvolve = (z, st) => !st.evolved && st.form === 0 && z.health < z.maxHealth * .5;
+  function moves(z) { return z && z.jb && canEvolve(z, z.jb) ? MANUAL_EVO : MANUAL_LIST; }
+  // The unit a swat works on: api.player, or (manual mode: a cursor pseudo-target) the nearest foe.
+  const victim = (api, x, y, r) => { const p = api.player; if (p && !p.pseudo) return p; return api.nearestFoe ? api.nearestFoe(x, y, r) : null; };
 
   const BODY_R = 108;
   const ROAR_R = 600, TBB_R = 360, TBB_SPEED = 1300, RAPID_R = 105;
@@ -199,7 +207,7 @@
           later(st, t0 + u * SWEEP_T, api => {
             api.line(x + ca * 110, y + sa * 110, x + ca * SWEEP_R, y + sa * SWEEP_R, 62, D * 2.0, j % 7 === 3 ? 'blade' : null);
             // Whoever the tails catch is swatted along the sweep.
-            const p = api.player;
+            const p = victim(api, x, y, SWEEP_R + 20);
             if (p) {
               const along = (p.x - x) * ca + (p.y - y) * sa, off = Math.abs(-(p.x - x) * sa + (p.y - y) * ca);
               if (along > 90 && along < SWEEP_R + 20 && off < 80) {
@@ -314,6 +322,8 @@
   // of the camera's ninja would tower off the top edge, so it looms up from below instead.
   function walk(z, st, dt, api, p, d) {
     const D = api.damage || 60;
+    if (z.manual) { manualWalk(z, st, dt, api, D); return; }
+    st.mx = null;
     const gx = p ? p.x + Math.max(-240, Math.min(240, z.x - p.x)) : z.x, gy = p ? p.y + 300 : z.y;
     const gd = Math.hypot(gx - z.x, gy - z.y);
     const want = p && st.windup <= 0 && st.hold <= 0 && (d > 900 || gd > (st.moving > .5 ? 40 : 110)) ? 1 : 0;
@@ -341,6 +351,31 @@
     } else { z.x = nx; z.y = ny; }
   }
 
+  // Manual control: the game moves the body (WASD); the legs, stomps and crushing follow that motion.
+  function manualWalk(z, st, dt, api, D) {
+    const ox = st.mx == null ? z.x : st.mx, oy = st.mx == null ? z.y : st.my;
+    const v = dt > 0 ? Math.hypot(z.x - ox, z.y - oy) / dt : 0;
+    st.mx = z.x; st.my = z.y;
+    st.moving += ((v > 6 ? 1 : 0) - st.moving) * Math.min(1, dt * 3);
+    if (st.moving < .02) return;
+    st.walk += dt * .5 * st.moving * Math.min(1.8, Math.max(1, v / WALK_SPEED));
+    const s = Math.sin(st.walk * TAU);
+    if ((st.lastSin > 0) !== (s > 0)) {
+      const side = s > 0 ? -1 : 1, S = scaleOf(st), fx = z.x + side * 112 * S, fy = z.y + 6;
+      if (st.stomps.length >= 4) st.stomps.shift();
+      st.stomps.push({ x: fx, y: fy, age: 0, seed: Math.random() * 99 });
+      if (api.blocked(fx, fy, 70)) api.world(fx, fy, 110, D * 5, 'earth');
+      api.shake(4);
+    }
+    st.lastSin = s;
+    if (v > 6) {
+      const a = Math.atan2(z.y - oy, z.x - ox);
+      if (st.crushCd <= 0 && api.blocked(z.x + Math.cos(a) * 120, z.y + Math.sin(a) * 120, 44)) {
+        st.crushCd = .45; api.world(z.x + Math.cos(a) * 130, z.y + Math.sin(a) * 130, 150, D * 6, 'earth', a);
+      }
+    }
+  }
+
   function update(z, dt, api) {
     const m = members[z.bossId];
     if (!m) return;
@@ -353,7 +388,7 @@
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
     for (let i = st.stomps.length - 1; i >= 0; i--) if ((st.stomps[i].age += dt) > 1.2) st.stomps.splice(i, 1);
-    if (z.health <= 0) { z.bossWindup = 0; st.ev.length = 0; st.hold = 0; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.manualBusy = false; st.ev.length = 0; st.hold = 0; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -364,7 +399,8 @@
     z.r = BODY_R * (1 + .1 * st.grow);
     z.armorScale = (m.armor || 1) * (st.move === 'evolve' ? .3 : 1);
     // The game's own walk is switched off (speedScale ignores 0): the giant plods by itself.
-    z.speedScale = 1e-4;
+    // Under manual control the game walks it (WASD) at a giant's pace.
+    z.speedScale = z.manual ? .7 : 1e-4;
 
     const p = api.player, d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
     walk(z, st, dt, api, p, d);
@@ -381,11 +417,19 @@
     } else if (st.hold <= 0) {
       st.holdMove = '';
       st.timer -= dt;
-      if (!st.evolved && st.form === 0 && z.health < z.maxHealth * .5) { st.force = 'evolve'; announce(z, st, m, api); }
+      if (z.manual) {
+        if (z.manualCast != null) {
+          let k = MANUAL[z.manualCast];
+          z.manualCast = null;
+          if (k === 'roar' && canEvolve(z, st)) k = 'evolve';
+          if (k) { st.force = k; announce(z, st, m, api); }
+        }
+      } else if (canEvolve(z, st)) { st.force = 'evolve'; announce(z, st, m, api); }
       else if (p && st.near > 1.0 && st.slamCd <= 0 && st.timer > .3) { st.slamCd = 6.5; st.force = 'slam'; announce(z, st, m, api); }
       else if (st.timer <= 0 && p && d < 1150) announce(z, st, m, api);
     }
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.ev.length > 0;
     pose(z, st, dt, p);
   }
 
@@ -1525,5 +1569,5 @@
 
   function hidden() { return true; }
 
-  window.TenTailsBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.TenTailsBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

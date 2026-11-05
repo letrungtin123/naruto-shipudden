@@ -52,6 +52,9 @@
   const CHIB_R = 560, CHIB_T = 3.4, CHIB_H = 195, CHIB_RS = 165;
 
   function pick() { return order[0]; }
+  // Manual control (team mode): keys 1..8 in this order, the ultimate last.
+  const KEYS = ['shinra', 'rods', 'rhino', 'bansho', 'futon', 'gakido', 'centipede', 'chibaku'];
+  const moves = () => KEYS.map(k => ({ label: MOVES[k].label }));
   const aimAt = (z, p) => p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0;
 
   function state(z) {
@@ -316,12 +319,13 @@
       f.age += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy -= 30 * dt;
       if (f.age > f.dur) st.flakes.splice(i, 1);
     }
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.guard = 0; st.hold = 0; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.guard = 0; st.hold = 0; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
     }
     st.hold = Math.max(0, st.hold - dt);
+    st.rec = Math.max(0, (st.rec || 0) - dt);
     st.absorb = Math.max(0, st.absorb - dt);
     st.reactCd -= dt;
 
@@ -346,9 +350,17 @@
       st.windup = Math.max(0, st.windup - dt);
       if (st.windup === 0) {
         cast(z, st, m, api);
+        st.rec = .4;
         st.timer = MOVES[st.move].after * rand(.9, 1.1) * (z.health < z.maxHealth * .5 ? .82 : 1);
         st.move = '';
         st.tele = [];
+      }
+    } else if (st.hold <= 0 && z.manual) {
+      // Driven by the player: only the requested jutsu, no rotation, no Gakidō reflex.
+      st.holdMove = '';
+      if (z.manualCast != null && st.rec <= 0) {
+        const k = KEYS[z.manualCast]; z.manualCast = null;
+        if (k) { st.force = k; announce(z, st, m, api); }
       }
     } else if (st.hold <= 0) {
       st.holdMove = '';
@@ -359,6 +371,7 @@
       else if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
     }
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.rec > 0;
     z.speedScale = st.guard > 0 ? .5 : .9;
   }
 
@@ -1584,5 +1597,5 @@
     ctx.restore();
   }
 
-  window.NagatoBoss = { members, order, moveLabels, pick, update, draw, drawOverlay };
+  window.NagatoBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, moves };
 })();

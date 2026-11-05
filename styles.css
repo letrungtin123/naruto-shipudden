@@ -2206,3 +2206,254 @@ kbd {
 .controls-grid .susanoo-control kbd { border-bottom-color: #d4b8ff; }
 @media (min-width: 1700px) { #susanooStatus { font-size: 12px; } }
 @media (max-width: 440px) { #susanooStatus { font-size: 9px; letter-spacing: .02em; padding: 4px 7px 4px 36px; } #susanooStatus::before { font-size: 9px; } }
+
+/* =========================================================================
+   ĐẤU ĐỘI — team battle: title button, setup / add / result screens, HUD board, move bar
+   ========================================================================= */
+
+.team-start { margin-top: 14px; }
+.team-start .plate-leaf { filter: hue-rotate(-28deg) saturate(1.3); }
+.team-start-note { max-width: 420px; margin: 8px 0 0; color: #cdbb98; font: 500 12px/1.45 var(--font-body); }
+
+.team-panel { z-index: 26; padding: 20px; }
+.team-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(1280px, calc(100vw - 32px));
+  height: min(860px, calc(100vh - 40px));
+  text-align: left;
+  color: var(--cream);
+  background: linear-gradient(180deg, #2a1d14, #17110c);
+  border: 1px solid rgba(255, 180, 58, .45);
+  border-radius: 6px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .65);
+}
+.team-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 20px 8px; border-bottom: 1px solid rgba(255, 180, 58, .2); }
+.team-title { margin: 4px 0 0; font: 400 clamp(28px, 4vw, 42px)/1 var(--font-display); letter-spacing: .05em; color: var(--orange-hi); }
+.team-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 20px; border-bottom: 1px solid rgba(255, 180, 58, .14); }
+.team-label { color: var(--orange-hi); font: 700 12px/1 var(--font-head); letter-spacing: .18em; }
+.team-note { flex: 1 1 320px; color: #cdbb98; font: 500 12px/1.4 var(--font-body); }
+.team-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.team-stepper button {
+  min-width: 32px; height: 30px;
+  color: var(--cream); background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(246, 233, 204, .25); border-radius: 3px;
+  font: 700 16px/1 var(--font-head); cursor: pointer;
+}
+.team-stepper button:hover { background: rgba(255, 180, 58, .25); }
+.team-count-out { min-width: 32px; text-align: center; font: 400 26px/1 var(--font-display); color: var(--cream); }
+
+.team-body { display: grid; grid-template-columns: minmax(300px, 430px) minmax(0, 1fr); min-height: 0; }
+.team-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; padding: 12px 14px 14px 20px; border-right: 1px solid rgba(255, 180, 58, .14); }
+.team-map-box { display: grid; gap: 6px; }
+.team-map { display: block; width: 100%; border: 2px solid #c9a26a; border-radius: 4px; background: #1d2a1a; cursor: crosshair; touch-action: manipulation; }
+.team-map-hint { margin: 0; color: #d8c8a8; font: 500 12px/1.35 var(--font-body); }
+.team-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.team-presets .coop-btn, .team-add-bar .coop-btn { padding: 6px 10px; font-size: 11px; }
+.team-add-bar .coop-btn.on { color: #1e1209; background: linear-gradient(180deg, #ffd27a, #f08a2a); border-color: #ffd27a; }
+
+.team-list { display: grid; gap: 7px; }
+.team-row {
+  --team: #fff;
+  display: grid; gap: 6px;
+  padding: 7px 8px 8px;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid rgba(246, 233, 204, .12);
+  border-left: 5px solid var(--team);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.team-row:hover { background: rgba(255, 255, 255, .06); }
+.team-row.selected { background: rgba(255, 180, 58, .1); border-color: var(--team); box-shadow: 0 0 0 1px var(--team), 0 0 14px rgba(0, 0, 0, .4); }
+.team-row:focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 2px; }
+.team-row-head { display: flex; align-items: center; gap: 8px; }
+.team-badge { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #120d0a; background: var(--team); font: 700 13px/1 var(--font-head); }
+.team-name {
+  flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px;
+  color: var(--team); background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(246, 233, 204, .18); border-radius: 3px;
+  font: 700 14px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase;
+}
+.team-name:focus { outline: 2px solid var(--team); outline-offset: 1px; }
+.team-row-count { flex: none; color: #d8c8a8; font: 600 12px/1 var(--font-head); letter-spacing: .06em; }
+.team-members { display: flex; flex-wrap: wrap; gap: 4px; }
+.team-empty { color: rgba(246, 233, 204, .5); font: 500 12px/1.3 var(--font-body); }
+.team-chip {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  padding: 2px 7px 2px 2px;
+  color: var(--cream); background: rgba(0, 0, 0, .3);
+  border: 1px solid rgba(246, 233, 204, .2); border-radius: 16px;
+  font: 600 11px/1 var(--font-head); letter-spacing: .03em; cursor: pointer;
+}
+.team-chip:hover { border-color: #ff8a7a; background: rgba(200, 40, 40, .25); }
+.team-chip-thumb { width: 26px; height: 26px; border-radius: 50%; background: rgba(255, 255, 255, .08); }
+.team-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.team-chip-x { color: #ff9a8a; font-size: 10px; }
+
+.team-catalog { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.team-cat-title { padding: 10px 20px 6px; color: #d8c8a8; font: 700 12px/1.2 var(--font-head); letter-spacing: .16em; }
+.team-cat-title strong { letter-spacing: .1em; }
+.team-cat-scroll { overflow-y: auto; padding: 0 20px 14px; }
+.team-cat-group h3 { margin: 12px 0 6px; color: var(--orange-hi); font: 700 12px/1.2 var(--font-head); letter-spacing: .2em; }
+.team-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.team-cat-item {
+  --tone: #e8c070;
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 5px 8px 5px 5px;
+  color: var(--cream); text-align: left;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(246, 233, 204, .12); border-left: 4px solid var(--tone); border-radius: 4px;
+  cursor: pointer;
+}
+.team-cat-item:hover, .team-cat-item:focus-visible { background: rgba(255, 180, 58, .16); border-color: rgba(255, 180, 58, .55); border-left-color: var(--tone); outline: none; }
+.team-thumb { flex: none; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, .18), rgba(0, 0, 0, .3)); }
+.team-cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1.2 var(--font-head); letter-spacing: .03em; }
+.flash { animation: team-flash .45s ease-out; }
+@keyframes team-flash { from { box-shadow: 0 0 0 2px #ffd27a, 0 0 16px rgba(255, 190, 80, .8); } to { box-shadow: 0 0 0 0 transparent; } }
+.team-foot { gap: 8px 10px; }
+.spawn-total.warn { color: #ff9a7a; }
+.team-go { min-width: 150px; font-size: 15px; }
+
+.team-add-teams { display: flex; flex-wrap: wrap; gap: 4px; }
+.team-pick {
+  --team: #fff;
+  padding: 5px 10px;
+  color: var(--team); background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(246, 233, 204, .2); border-bottom: 3px solid var(--team); border-radius: 3px;
+  font: 700 12px/1 var(--font-head); letter-spacing: .08em; cursor: pointer;
+}
+.team-pick.selected { color: #120d0a; background: var(--team); }
+
+/* Result screen (a hanging scroll, like the pause menu) */
+#teamResultScreen { z-index: 26; }
+.team-result { gap: 6px; min-width: min(460px, calc(100vw - 40px)); }
+.team-result-title { margin: 4px 0 10px; font: 400 clamp(30px, 5vw, 48px)/1.05 var(--font-display); letter-spacing: .04em; -webkit-text-stroke: 1px #2a1608; }
+.team-result-table { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 18px; width: 100%; margin: 0 0 16px; color: var(--paper-ink); font: 600 14px/1.3 var(--font-head); text-align: right; }
+.team-result-table .th { color: #8e1b14; font-size: 11px; letter-spacing: .2em; }
+.team-result-table > :nth-child(3n + 1) { text-align: left; }
+.team-result-name { padding-left: 10px; border-left: 6px solid var(--team); letter-spacing: .06em; }
+.team-result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.team-result .headband { min-width: 240px; }
+
+/* In-match scoreboard: one row per team, a portrait per unit (click to take control) */
+#teamBoard {
+  position: absolute;
+  top: calc(var(--edge) + 136px);
+  right: var(--edge);
+  width: 272px;
+  max-height: calc(100vh - var(--edge) * 3 - 136px - var(--mm-box) - 10px);
+  overflow-y: auto;
+  display: grid; gap: 5px; align-content: start;
+  pointer-events: auto;
+  scrollbar-width: thin;
+}
+#teamBoard[hidden] { display: none; }
+.tb-toggle {
+  justify-self: end; padding: 3px 8px;
+  color: var(--cream); background: rgba(10, 7, 5, .78);
+  border: 1px solid rgba(246, 233, 204, .25); border-radius: 3px;
+  font: 700 11px/1 var(--font-head); letter-spacing: .14em; cursor: pointer;
+}
+.tb-team { --team: #fff; padding: 4px 6px 5px; background: rgba(10, 7, 5, .8); border-left: 4px solid var(--team); border-radius: 3px; }
+.tb-team.out { opacity: .45; }
+.tb-head { display: flex; justify-content: space-between; gap: 6px; font: 700 12px/1.2 var(--font-head); letter-spacing: .06em; text-shadow: 1px 1px 2px #000; }
+.tb-name { overflow: hidden; color: var(--team); text-overflow: ellipsis; white-space: nowrap; }
+.tb-stat { flex: none; color: #e8dcc4; font-weight: 500; font-size: 11px; }
+.tb-units { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+#teamBoard.collapsed .tb-units { display: none; }
+.tb-unit { position: relative; display: grid; gap: 2px; width: 28px; padding: 1px; background: rgba(255, 255, 255, .06); border: 1px solid transparent; border-radius: 3px; cursor: pointer; }
+.tb-unit:hover { border-color: var(--team); }
+.tb-unit.ctrl { border-color: #fff; box-shadow: 0 0 0 1px var(--team), 0 0 8px var(--team); }
+.tb-unit.dead { filter: grayscale(1); opacity: .35; cursor: default; }
+.tb-thumb { width: 24px; height: 24px; border-radius: 50%; }
+.tb-hp { display: block; height: 3px; background: rgba(255, 255, 255, .15); }
+.tb-hp i { display: block; height: 100%; background: var(--team); }
+.tb-more { align-self: center; color: #d8c8a8; font: 600 11px/1 var(--font-head); }
+
+/* Move bar of the unit you drive (replaces Naruto's skill bar) */
+#moveBar {
+  --team: #fff;
+  position: absolute;
+  left: 50%;
+  bottom: var(--edge);
+  width: min(1000px, calc(100vw - 2 * (var(--mm-box) + var(--edge) + 18px)));
+  transform: translateX(-50%);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 150px);
+  justify-content: center;
+  gap: 7px;
+}
+#moveBar[hidden] { display: none; }
+.mv-slot {
+  --cd: 0;
+  position: relative; isolation: isolate; overflow: hidden;
+  min-width: 0; min-height: 64px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 14px 5px 8px;
+  border: 1px solid rgba(255, 255, 255, .12); border-top: 3px solid var(--team); border-radius: 4px 4px 6px 6px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, .08), transparent 66%), linear-gradient(180deg, rgba(26, 19, 15, .94), rgba(9, 7, 6, .94));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .45);
+  text-align: center; text-shadow: 1px 1px 2px #000;
+}
+.mv-slot::after { content: ''; position: absolute; inset: auto 0 0 0; z-index: -1; height: calc(var(--cd) * 100%); background: rgba(0, 0, 0, .62); }
+.mv-slot kbd { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); padding: 1px 6px; font-size: 10px; border-bottom-color: var(--team); }
+.mv-slot strong { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: #fff4e2; font: 700 11px/1.15 var(--font-head); letter-spacing: .03em; }
+.mv-slot.cooling strong { color: #a89a86; }
+.mv-left { position: absolute; right: 5px; bottom: 3px; color: #ffd27a; font: 400 18px/1 var(--font-display); }
+.mv-basic { border-top-color: #e8dcc4; }
+.mv-basic kbd { font-size: 8px; }
+.mv-ult { border-top-color: #ffd27a; box-shadow: 0 8px 18px rgba(0, 0, 0, .45), inset 0 0 14px rgba(255, 190, 80, .18); }
+#moveBar.busy .mv-slot:not(.mv-basic) strong { opacity: .7; }
+
+/* While driving a unit Naruto's own bar and mode chips step aside */
+#hud.team-unit #skillBar,
+#hud.team-unit #nineTailsStatus, #hud.team-unit #gatesStatus, #hud.team-unit #rinneganStatus,
+#hud.team-unit #sixPathsStatus, #hud.team-unit #susanooStatus { display: none; }
+#hud.team-mode #bossBar { display: none; }
+.controls-grid .team-control { --tone: #3fa2ff; grid-column: span 2; }
+
+@media (max-width: 1240px) {
+  #moveBar { left: var(--edge); transform: none; width: calc(100vw - var(--edge) * 2 - var(--mm-box) - 18px); }
+}
+@media (max-width: 860px) {
+  .team-panel { padding: 10px; }
+  .team-card { display: block; height: auto; max-height: none; width: calc(100vw - 20px); }
+  .team-body { display: block; }
+  .team-side, .team-catalog { display: block; min-height: auto; }
+  .team-side > * + * { margin-top: 10px; }
+  .team-side { overflow: visible; border-right: 0; padding: 12px 14px; }
+  .team-foot { position: sticky; bottom: 0; z-index: 2; background: #17110c; }
+  .team-cat-scroll { overflow: visible; padding: 0 14px 14px; }
+  .team-cat-title { padding: 10px 14px 6px; }
+  .team-cat-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+  #moveBar { grid-auto-flow: row; grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 12px; }
+  .mv-slot { min-height: 54px; }
+  #teamBoard { width: 220px; }
+}
+@media (max-width: 600px) {
+  #moveBar { bottom: calc(var(--edge) + var(--mm-box) + 18px); width: calc(100vw - var(--edge) * 2); }
+  #teamBoard { top: auto; bottom: calc(var(--edge) + var(--mm-box) + 160px); width: 180px; max-height: 30vh; }
+  .team-head, .team-toolbar { padding-left: 14px; padding-right: 14px; }
+}
+.team-result .spawn-ghost { color: var(--paper-ink); background: rgba(52, 32, 15, .06); border-color: rgba(52, 32, 15, .45); }
+#pauseTeamTitle { margin-top: 10px; }
+
+/* Đấu Đội: play / watch choice, spectator HUD, dash slot */
+.team-modes { display: inline-flex; border: 1px solid rgba(246, 233, 204, .3); border-radius: 4px; overflow: hidden; }
+.team-mode-btn {
+  padding: 7px 12px;
+  color: var(--cream); background: rgba(0, 0, 0, .3);
+  border: 0; border-right: 1px solid rgba(246, 233, 204, .2);
+  font: 700 12px/1 var(--font-head); letter-spacing: .1em; cursor: pointer;
+}
+.team-mode-btn:last-child { border-right: 0; }
+.team-mode-btn:hover { background: rgba(255, 180, 58, .18); }
+.team-mode-btn.on { color: #1e1209; background: linear-gradient(180deg, #ffd27a, #f08a2a); }
+.team-mode-btn:focus-visible { outline: 2px solid var(--orange-hi); outline-offset: -2px; }
+#hud.team-watch #skillBar,
+#hud.team-watch #nineTailsStatus, #hud.team-watch #gatesStatus, #hud.team-watch #rinneganStatus,
+#hud.team-watch #sixPathsStatus, #hud.team-watch #susanooStatus, #hud.team-watch .bar.armor { display: none; }
+#hud.team-watch .minimap-seal { pointer-events: auto; cursor: pointer; }
+.mv-dash { border-top-color: #9fe0ff; }
+.mv-dash kbd { font-size: 8px; }

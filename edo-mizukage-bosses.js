@@ -61,6 +61,16 @@
   };
   const moveLabels = {};
   for (const k in MOVES) moveLabels[k] = MOVES[k].label;
+  // Manual control (team mode): keys 1..n per member, ultimate last.
+  const MANUAL = {
+    gengetsu: ['gun', 'arm', 'clam', 'hydro', 'imp', 'army'],
+    yagura: ['hook', 'dragon', 'coral', 'mirror', 'shell', 'mist', 'isobu']
+  };
+  const MANUAL_LIST = {};
+  for (const id in MANUAL) MANUAL_LIST[id] = MANUAL[id].map(k => ({ label: MOVES[k].label }));
+  function moves(z) { return (z && MANUAL_LIST[z.bossId]) || []; }
+  // The unit a hook/hunt works on: api.player, or (manual mode: a cursor pseudo-target) the nearest foe.
+  const victim = (api, x, y, r) => { const p = api.player; if (p && !p.pseudo) return p; return api.nearestFoe ? api.nearestFoe(x, y, r) : null; };
 
   const GUN_LEN = 1050, GUN_SPEED = 1900, GUN_R = 30, GUN_LEAD = .3;
   const ARM_DASH = 420, ARM_CONE = 310, ARM_HALF = .78, ARM_DUR = .2;
@@ -337,7 +347,7 @@
 
   // ---------------- per-frame jutsu logic
   function gunUpd(fx, dt, api) {
-    const p = api.player;
+    const p = api.player && !api.player.pseudo ? api.player : null;
     for (const b of fx.shots) {
       const u = fx.age - b.t0;
       if (u < 0 || b.de >= 0) continue;
@@ -389,12 +399,13 @@
         if (m.t < ARMY_WALK) allWalked = false;
       } else {
         // the single imp hunts its target, turning like a heavy beast
-        if (p) {
-          const want = Math.atan2(p.y - m.y, p.x - m.x), da = Math.atan2(Math.sin(want - m.a), Math.cos(want - m.a));
+        const q = p && p.pseudo ? victim(api, m.x, m.y, 900) || p : p;
+        if (q) {
+          const want = Math.atan2(q.y - m.y, q.x - m.x), da = Math.atan2(Math.sin(want - m.a), Math.cos(want - m.a));
           m.a = +(m.a + Math.max(-2.2 * dt, Math.min(2.2 * dt, da))).toFixed(3);
         }
         m.x = Math.round((m.x + Math.cos(m.a) * IMP_SPEED * dt) * 10) / 10; m.y = Math.round((m.y + Math.sin(m.a) * IMP_SPEED * dt) * 10) / 10;
-        if (m.t > IMP_WALK || (p && Math.hypot(p.x - m.x, p.y - m.y) < 110)) { m.fz = 1; m.fuse = 0; }
+        if (m.t > IMP_WALK || (q && !q.pseudo && Math.hypot(q.x - m.x, q.y - m.y) < 110)) { m.fz = 1; m.fuse = 0; }
       }
     }
     if (fx.army) {
@@ -413,7 +424,7 @@
   function hookUpd(fx, dt, api) {
     if (fx.hit || fx.age < .22) return;
     fx.hit = 1;
-    const c = Math.cos(fx.a), s = Math.sin(fx.a), x1 = fx.x0 + c * HOOK_LEN, y1 = fx.y0 + s * HOOK_LEN, p = api.player;
+    const c = Math.cos(fx.a), s = Math.sin(fx.a), x1 = fx.x0 + c * HOOK_LEN, y1 = fx.y0 + s * HOOK_LEN, p = victim(api, fx.x0, fx.y0, HOOK_LEN + 80);
     api.line(fx.x0, fx.y0, x1, y1, HOOK_W, fx.dmg * 1.2);
     if (p && segDist(p.x, p.y, fx.x0, fx.y0, x1, y1) < HOOK_W + (p.r || 12)) {
       const d = Math.hypot(p.x - fx.x0, p.y - fx.y0);
@@ -547,6 +558,10 @@
   function geyserUpd(fx, dt, api) {
     // the reformed body throws a ring of water outward
     const p = api.player;
+    if (p && p.pseudo) {
+      if (!fx.hit && fx.age >= .3) { fx.hit = 1; api.strike(fx.x, fx.y, HYD_RING * .8, fx.dmg * 1.0, null, null, true); }
+      return;
+    }
     if (fx.hit || !p || fx.age > .6) return;
     const r = HYD_R * .6 + (HYD_RING - HYD_R * .6) * easeOut(fx.age / .55), d = Math.hypot(p.x - fx.x, p.y - fx.y);
     if (Math.abs(d - r) < 46 + (p.r || 12)) { fx.hit = 1; api.damagePlayer(fx.dmg * 1.0); }
@@ -588,7 +603,7 @@
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
     for (let i = st.ghosts.length - 1; i >= 0; i--) if ((st.ghosts[i].age += dt) > .3) st.ghosts.splice(i, 1);
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.hold = 0; st.dash = st.roll = st.puddle = st.beast = null; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; z.manualBusy = false; st.ev.length = 0; st.hold = 0; st.dash = st.roll = st.puddle = st.beast = null; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -610,6 +625,7 @@
     if (st.puddle) {
       puddleUpdate(z, st, dt, api);
       z.armorScale = st.puddle ? 1e-4 : m.armor; z.kageDash = st.puddle ? .05 : 0; z.bossWindup = 0;
+      z.manualBusy = true;
       st.lastHp = z.health;
       return;
     }
@@ -618,6 +634,7 @@
       beastUpdate(z, st, dt, api);
       z.armorScale = st.beast ? m.armor * .6 : m.armor; z.kageDash = st.beast ? .05 : 0; z.bossWindup = 0;
       st.hold = Math.max(0, st.hold - dt);
+      z.manualBusy = true;
       st.lastHp = z.health;
       return;
     }
@@ -639,8 +656,15 @@
       st.holdMove = '';
       st.timer -= dt;
       const p = api.player, d = p ? Math.hypot(z.x - p.x, z.y - p.y) : 9999;
-      if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
+      if (z.manual) {
+        if (z.manualCast != null) {
+          const k = (MANUAL[z.bossId] || [])[z.manualCast];
+          z.manualCast = null;
+          if (k) { st.force = k; announce(z, st, m, api); }
+        }
+      } else if (st.timer <= 0 && p && (st.force || d < 900)) announce(z, st, m, api);
     }
+    z.manualBusy = !!(st.windup > 0 || st.hold > 0 || st.dash || st.roll || st.ev.length);
     z.kageDash = st.dash || st.roll || st.atk > 0 || (st.windup > 0 && st.move === 'gun') || (st.holdMove === 'shell' && st.hold > 0) ? .05 : 0;
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
     z.speedScale = .9;
@@ -1920,5 +1944,5 @@
     return !!(st && z.health > 0 && (st.puddle || st.beast || st.roll || (st.holdMove === 'shell' && st.hold > 0)));
   }
 
-  window.EdoMizukageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden };
+  window.EdoMizukageBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, hidden, moves };
 })();

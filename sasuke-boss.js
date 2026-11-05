@@ -79,6 +79,9 @@
   const FLAME_BASE = 114 / 128;
 
   function pick() { return order[0]; }
+  // Manual control (team mode): keys 1..8, Indra's Arrow (the ultimate) last. Chidori Senbon stays AI-only (max 8 keys).
+  const KEYS = ['eiso', 'tejikara', 'amaterasu', 'nagashi', 'arrows', 'kagutsuchi', 'kirin', 'indra'];
+  const moves = () => KEYS.map(k => ({ label: MOVES[k].label }));
   const aimAt = (z, p) => p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0;
 
   function state(z) {
@@ -153,7 +156,8 @@
     let move = st.force;
     if (move && MOVES[move]) st.force = null; else { move = m.moves[st.casts % m.moves.length]; st.casts++; }
     const def = MOVES[move], p = api.player;
-    if (p && RANGED[move]) {
+    // Under the player's control he casts from where he stands (no repositioning flicker).
+    if (p && RANGED[move] && !z.manual) {
       const d = Math.hypot(z.x - p.x, z.y - p.y);
       if (move === 'indra') { const side = z.x < p.x ? -1 : 1; flicker(z, st, api, 390, Math.atan2(210, 330 * side)); }
       else if (d < 300) flicker(z, st, api, move === 'tejikara' ? 460 : 400, null);
@@ -353,12 +357,13 @@
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
     st.guardVis = st.guard > 0 ? Math.min(1, st.guardVis + dt * 5) : Math.max(0, st.guardVis - dt * 2.5);
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.guard = 0; st.hold = 0; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.ev.length = 0; st.guard = 0; st.hold = 0; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
     }
     st.hold = Math.max(0, st.hold - dt);
+    st.rec = Math.max(0, (st.rec || 0) - dt);
     st.reactCd -= dt; st.blinkCd -= dt;
     z.kageDash = Math.max(0, (z.kageDash || 0) - dt);
 
@@ -367,7 +372,7 @@
     z.armorScale = (m.armor || 1) * (st.guard > 0 ? .3 : 1);
     st.hpClock += dt;
     if (st.hpClock > 1.5) { st.hpClock = 0; st.hpMark = z.health; }
-    if (st.reactCd <= 0 && st.hpMark - z.health > z.maxHealth * .05) { st.reactCd = 12; st.hpMark = z.health; st.guard = 2.8; }
+    if (!z.manual && st.reactCd <= 0 && st.hpMark - z.health > z.maxHealth * .05) { st.reactCd = 12; st.hpMark = z.health; st.guard = 2.8; }
 
     const p = api.player;
     if (st.windup > 0) {
@@ -377,9 +382,17 @@
       if (st.move === 'arrows' && st.windup > .5 && p) st.aim = turn(st.aim, aimAt(z, p), dt * 1.4);
       if (st.windup === 0) {
         cast(z, st, m, api);
+        st.rec = .4;
         st.timer = MOVES[st.move].after * rand(.9, 1.1) * (z.health < z.maxHealth * .5 ? .82 : 1);
         st.move = '';
         st.tele = [];
+      }
+    } else if (st.hold <= 0 && z.manual) {
+      // Driven by the player: only the requested jutsu; no rotation, no blink, no Susanoo reflex.
+      st.holdMove = '';
+      if (z.manualCast != null && st.rec <= 0) {
+        const k = KEYS[z.manualCast]; z.manualCast = null;
+        if (k) { st.force = k; announce(z, st, m, api); }
       }
     } else if (st.hold <= 0) {
       st.holdMove = '';
@@ -392,6 +405,7 @@
     // He plants his feet for the Susanoo jutsu and Kirin.
     const planted = (st.windup > 0 && (st.move === 'indra' || st.move === 'arrows' || st.move === 'kirin')) || (st.hold > 0 && st.holdMove === 'indra');
     z.speedScale = planted ? .02 : 1.05;
+    z.manualBusy = st.windup > 0 || st.hold > 0 || st.rec > 0;
   }
 
   // ------------------------------------------------------------------ cached art
@@ -1719,5 +1733,5 @@
     ctx.restore();
   }
 
-  window.SasukeBoss = { members, order, moveLabels, pick, update, draw, drawOverlay };
+  window.SasukeBoss = { members, order, moveLabels, pick, update, draw, drawOverlay, moves };
 })();

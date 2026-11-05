@@ -57,6 +57,16 @@
 
   function pick(level) { return order[((Math.floor(level || 0) % order.length) + order.length) % order.length]; }
   const aimAt = (z, p) => p ? Math.atan2(p.y - z.y, p.x - z.x) : z.angle || 0;
+  // Team battle: the member's jutsu in key order 1..n (each once; the rotation's last new jutsu is the ultimate).
+  const MOVE_LIST = {};
+  for (const id in members) MOVE_LIST[id] = [...new Set(members[id].moves)].map(k => ({ id: k, label: MOVES[k].label }));
+  function moves(z) { return (z && MOVE_LIST[z.bossId]) || []; }
+  // What a hit-check may test: in manual control api.player is only the cursor, so use the nearest hostile unit instead.
+  function foeNear(api, x, y, r) {
+    const p = api.player;
+    if (!p || !p.pseudo) return p;
+    return api.nearestFoe ? api.nearestFoe(x, y, r) : null;
+  }
 
   function state(z) {
     return z.lg || (z.lg = { t: 0, casts: 0, timer: 1.0, move: '', windup: 0, windMax: 1, aim: 0, tx: z.x, ty: z.y,
@@ -140,10 +150,14 @@
     return [];
   }
 
-  function announce(z, st, m, api) {
-    let move = st.force;
-    if (move && MOVES[move]) st.force = null; else { move = m.moves[st.casts % m.moves.length]; st.casts++; }
-    const def = MOVES[move], p = api.player;
+  function announce(z, st, m, api, forced) {
+    let move = forced; // a manual cast leaves the AI rotation where it was
+    if (!move) {
+      move = st.force;
+      if (move && MOVES[move]) st.force = null; else { move = m.moves[st.casts % m.moves.length]; st.casts++; }
+    }
+    const def = MOVES[move], p = st.ambushAt && move === 'ambush' ? st.ambushAt : api.player;
+    st.ambushAt = null;
     st.move = move; st.windup = st.windMax = def.windup;
     st.aim = aimAt(z, p); st.tx = p ? p.x : z.x; st.ty = p ? p.y : z.y;
     st.tele = teleFor(z, st, move);
@@ -162,7 +176,7 @@
         const pts = conePts(s.x, s.y, s.a, s.r, s.h);
         pts.forEach((p, i) => later(st, .04 + p.d / 1500, api => api.strike(p.x, p.y, p.r, D * 1.6, null, i % 5 === 0 ? 'blade' : null, true)));
         later(st, .18, api => {
-          if (inCone(api.player, s.x, s.y, s.a, s.r, s.h)) api.knockback(z, s.r + 40, 250, 0);
+          if (inCone(foeNear(api, s.x, s.y, s.r + 20), s.x, s.y, s.a, s.r, s.h)) api.knockback(z, s.r + 40, 250, 0);
           api.world(s.x + ca * 380, s.y + sa * 380, 170, D * 2, 'blade', s.a);
           api.world(s.x + ca * 640, s.y + sa * 640, 150, D * 2, 'blade', s.a);
         });
@@ -377,7 +391,7 @@
       case 'gaeshi': {
         addFx(st, { kind: 'gaeshi', x: s.x, y: s.y, a: s.a, R: s.r, h: s.h, dur: 1.1, seed });
         conePts(s.x, s.y, s.a, s.r, s.h).forEach((p, i) => later(st, .03 + p.d / 1800, api => api.strike(p.x, p.y, p.r, D * 2.0, null, i % 4 === 0 ? 'shockwave' : null, true)));
-        later(st, .1, api => { if (inCone(api.player, s.x, s.y, s.a, s.r, s.h)) api.knockback(z, s.r + 40, 230, 0); });
+        later(st, .1, api => { if (inCone(foeNear(api, s.x, s.y, s.r + 20), s.x, s.y, s.a, s.r, s.h)) api.knockback(z, s.r + 40, 230, 0); });
         st.guard = .5;
         api.shake(12);
         break;
@@ -439,7 +453,7 @@
       if (fx.upd && z.health > 0) fx.upd(fx, dt, api);
       if (fx.age >= fx.dur) st.fx.splice(i, 1);
     }
-    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.dash = null; st.invis = null; st.ev.length = 0; return; }
+    if (z.health <= 0) { z.bossWindup = 0; z.kageDash = 0; st.dash = null; st.invis = null; st.ev.length = 0; z.manualBusy = false; return; }
     for (let i = st.ev.length - 1; i >= 0; i--) {
       const ev = st.ev[i];
       if ((ev.t -= dt) <= 0) { st.ev.splice(i, 1); ev.fn(api); }
@@ -455,8 +469,14 @@
       const iv = st.invis;
       iv.t += dt;
       if (iv.t >= iv.dur) {
-        const p = api.player;
+        let p = api.player;
         st.invis = null;
+        if (p && p.pseudo) {
+          // manual control: reappear behind the hostile nearest the cursor (or at the cursor itself)
+          const f = api.nearestFoe ? api.nearestFoe(p.x, p.y, 320) : null;
+          p = f || { x: p.x, y: p.y, angle: Math.atan2(p.y - z.y, p.x - z.x) };
+          st.ambushAt = { x: p.x, y: p.y };
+        }
         if (p) {
           const back = (p.angle || 0) + Math.PI;
           let bx = p.x + Math.cos(back) * 95, by = p.y + Math.sin(back) * 95;
@@ -494,11 +514,20 @@
         st.move = '';
         st.tele = [];
       }
+    } else if (z.manual) {
+      // Manual control: only the user's key starts a jutsu; Mu's vanish still ends in its own ambush.
+      if (!st.dash && !st.invis && st.force) announce(z, st, m, api);
+      else if (z.manualCast != null && !st.dash && !st.invis && st.hold <= 0) {
+        const mv = MOVE_LIST[z.bossId][z.manualCast];
+        z.manualCast = null;
+        if (mv) announce(z, st, m, api, mv.id);
+      }
     } else if (!st.dash && !st.invis) {
       st.timer -= dt;
       const p = api.player;
       if (st.timer <= 0 && p && (st.force || Math.hypot(z.x - p.x, z.y - p.y) < 880)) announce(z, st, m, api);
     }
+    z.manualBusy = st.windup > 0 || st.hold > 0 || !!st.dash || !!st.invis || !!st.force;
     z.bossWindup = st.windup > 0 ? st.windup : st.hold;
   }
 
@@ -2001,5 +2030,5 @@
     ctx.restore();
   }
 
-  window.LegendBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, bodyLift, hidden };
+  window.LegendBosses = { members, order, moveLabels, pick, update, draw, drawOverlay, bodyLift, hidden, moves };
 })();

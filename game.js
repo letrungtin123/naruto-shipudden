@@ -182,7 +182,9 @@
     return faction === 'otsutsuki' ? window.OtsutsukiBosses : faction === 'kage' ? window.KageBosses
       : faction === 'madara' ? window.MadaraBosses : faction === 'sannin' ? window.SanninBosses
       : faction === 'hokage' ? window.HokageBosses : faction === 'legend' ? window.LegendBosses
-      : faction === 'bee' ? window.KillerBeeBoss : faction === 'nagato' ? window.NagatoBoss : window.AkatsukiBosses;
+      : faction === 'bee' ? window.KillerBeeBoss : faction === 'nagato' ? window.NagatoBoss
+      : faction === 'sasuke' ? window.SasukeBoss : faction === 'tobi' ? window.TobiBoss : faction === 'zetsu' ? window.ZetsuBoss
+      : faction === 'danzo' ? window.DanzoBoss : faction === 'jubi' ? window.TenTailsBoss : window.AkatsukiBosses;
   }
   function bossModuleOf(z) {
     if (!z || z.type !== 'boss' || !z.bossId) return null;
@@ -2467,7 +2469,8 @@
       projectile: addHostileProjectile, pulse: enemyPulse, impact: bossImpact,
       knockback: bossKnockback, burst, blocked, damagePlayer, strike: enemyStrike, line: enemyLine,
       world: worldImpact, shake: n => { shake = Math.max(shake, n); },
-      move: (dx, dy) => moveCircle(z, dx, dy, z.r) };
+      move: (dx, dy) => moveCircle(z, dx, dy, z.r),
+      summon: (type, x, y) => { if (!ZOMBIE_TYPES[type] || type === 'boss' || type === 'beast' || spawnQueue.length > 40) return false; spawnQueue.push({ type, at: { x, y } }); return true; } };
   }
 
   function enemyLine(x1, y1, x2, y2, halfWidth, damage, kind) {
@@ -3104,8 +3107,9 @@
     ui.bossBar.classList.toggle('beast', !!boss && boss.type === 'beast');
     ui.bossBar.classList.toggle('kage', !!boss && boss.bossFaction === 'kage');
     ui.bossBar.classList.toggle('madara', !!boss && boss.bossFaction === 'madara');
-    const barFaction = { bee: 'legend', nagato: 'legend' }[boss?.bossFaction] || boss?.bossFaction;
-    for (const f of ['sannin', 'hokage', 'legend']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
+    // Living bosses get their own heading; only the reanimated ones read "Uế Thổ".
+    const barFaction = { bee: 'war', nagato: 'legend', sasuke: 'rival', tobi: 'rival', zetsu: 'rival', danzo: 'rival', jubi: 'rival' }[boss?.bossFaction] || boss?.bossFaction;
+    for (const f of ['sannin', 'hokage', 'legend', 'war', 'rival']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
     if (boss) {
       const module = boss.type === 'beast' ? window.TailedBeasts : bossModuleOf(boss);
       const member = module?.members?.[boss.type === 'beast' ? boss.beastId : boss.bossId];
@@ -4738,8 +4742,8 @@
     const A = window.AkatsukiBosses, O = window.OtsutsukiBosses, T = window.TailedBeasts;
     const tone = { walker: '#8aaedf', runner: '#67d7ff', brute: '#caa477', spitter: '#ff844b' };
     return [
-      { title: 'NINJA ĐỊCH', items: ['walker', 'runner', 'brute', 'spitter'].map(type =>
-        ({ key: type, type, name: ZOMBIE_TYPES[type].name, sprite: type, tone: tone[type], bulk: true })) },
+      { title: 'NINJA ĐỊCH', items: ['walker', 'runner', 'brute', 'spitter', 'zetsu_white'].map(type =>
+        ({ key: type, type, name: ZOMBIE_TYPES[type].name, sprite: type, tone: tone[type] || ZOMBIE_TYPES[type].color, bulk: true })) },
       { title: 'NINJA CÁC LÀNG', items: VILLAGE_NINJA_TYPES.map(type =>
         ({ key: type, type, name: ZOMBIE_TYPES[type].name, sprite: window.AnimeSprites?.has(type) ? type : ZOMBIE_TYPES[type].fallback, tone: STYLE_ACCENT[ZOMBIE_TYPES[type].style], bulk: true })) },
       { title: 'KAGE', items: (window.KageBosses?.order || []).map(id =>
@@ -4751,6 +4755,9 @@
         ({ key: faction[0] + faction[1] + ':' + id, type: 'boss', faction, id, name: M.members[id].name, sprite: window.AnimeSprites?.has(id) ? id : 'pain', tone: M.members[id].accent || '#e8c070' })) })),
       { title: 'ĐẠI CHIẾN NHẪN GIẢ LẦN 4', items: [['madara', window.MadaraBosses], ['nagato', window.NagatoBoss], ['bee', window.KillerBeeBoss]]
         .flatMap(([faction, M]) => (M?.order || []).map(id => ({ key: 'w' + faction[0] + ':' + id, type: 'boss', faction, id, name: M.members[id].name,
+          sprite: window.AnimeSprites?.has(M.members[id].sprite || id) ? M.members[id].sprite || id : 'pain', tone: M.members[id].accent || '#e8c070' }))) },
+      { title: 'KẺ THÙ TRUYỀN KIẾP', items: [['sasuke', window.SasukeBoss], ['tobi', window.TobiBoss], ['zetsu', window.ZetsuBoss], ['danzo', window.DanzoBoss], ['jubi', window.TenTailsBoss]]
+        .flatMap(([faction, M]) => (M?.order || []).map(id => ({ key: 'x' + faction + ':' + id, type: 'boss', faction, id, name: M.members[id].name,
           sprite: window.AnimeSprites?.has(M.members[id].sprite || id) ? M.members[id].sprite || id : 'pain', tone: M.members[id].accent || '#e8c070' }))) },
       { title: 'ŌTSUTSUKI', items: (O?.order || []).map(id =>
         ({ key: 'o:' + id, type: 'boss', faction: 'otsutsuki', id, name: O.members[id].name, sprite: id, tone: O.members[id].accent || '#d6beff' })) },
@@ -4970,7 +4977,7 @@
     // Bake the rarer casts in the background so the first boss or summon doesn't hitch.
     const later = ['naruto_baryon', 'naruto_rinnegan', 'pain', 'itachi', 'kisame', 'deidara', 'sasori', 'kakuzu', 'konan', 'hidan',
       'momoshiki', 'kinshiki', 'isshiki', 'kaguya', 'hashirama', 'tobirama', 'hiruzen', 'minato', 'guy',
-      ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo', 'madara', 'madara_rikudo', 'nagato', 'killer_bee'].filter(id => window.AnimeSprites.has(id))];
+      ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo', 'madara', 'madara_rikudo', 'nagato', 'killer_bee', 'sasuke', 'tobi', 'zetsu', 'danzo', 'jubi', 'zetsu_white'].filter(id => window.AnimeSprites.has(id))];
     const bake = () => { if (later.length) { window.AnimeSprites.prewarm([later.shift()]); setTimeout(bake, 30); } };
     setTimeout(bake, 400);
   }

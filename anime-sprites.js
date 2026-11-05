@@ -1228,6 +1228,129 @@
     }, base);
   }
 
+  // Pain's other five paths (pain-paths-bosses.js): Tendō's orange hair, Rinnegan, black studs and
+  // the Akatsuki cloak, each borrowed body with its own silhouette. kind: asura | human | animal | preta | naraka.
+  function painPathSpec(kind) {
+    const HC = '#ff8530', O = '#0c0a10', STEEL = '#8e96a2', STEEL_D = '#4a505c', STEEL_L = '#d4dae2';
+    const pin = (ctx, x, y, r = .42) => { dot(ctx, x, y, r, '#33333c'); dot(ctx, x - r * .3, y - r * .3, r * .42, '#d0d4de'); };
+    const bar = (ctx, x, y) => { pin(ctx, x - .75, y, .34); pin(ctx, x + .75, y, .34); line(ctx, [[x - .75, y], [x + .75, y]], '#33333c', .3); };
+    const earRow = ctx => { pin(ctx, -3.8, -.4, .36); pin(ctx, -4.7, 1.5, .36); pin(ctx, -4.5, 3.6, .36); };
+    const head = { eyes: { type: 'rinnegan' }, mouth: 'neutral', browAngle: 'angry', browColor: '#a8481c',
+      band: { cloth: '#2a2f3c', plate: '#bfc7d0', symbol: 'rain', slash: true } };
+    const base = { skin: '#f0c9a8', head };
+    // A jointed steel limb (shoulder → elbow → hand) for the Asura Path's hidden arms.
+    const steelArm = (ctx, a, b, c, w) => {
+      for (const [p, q, ww] of [[a, b, w], [b, c, w * .85]]) { seg(ctx, p, q, ww + 1.2, O); seg(ctx, p, q, ww, STEEL); seg(ctx, [p[0] + .3, p[1] - .3], [q[0] + .3, q[1] - .3], ww * .3, STEEL_L); }
+      for (const p of [b, c]) paint(ctx, () => ell(ctx, p[0], p[1], w * .62, w * .62), STEEL_D, O, .6, () => { dot(ctx, p[0] - .4, p[1] - .4, w * .2, STEEL_L); });
+    };
+    const blade = (ctx, p, ang, len) => {
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      paint(ctx, () => poly(ctx, [[p[0] - sa * 1.3, p[1] + ca * 1.3], [p[0] + ca * len, p[1] + sa * len], [p[0] + sa * 1.3, p[1] - ca * 1.3]]), '#e8eef4', O, .6, () => {
+        ctx.fillStyle = 'rgba(70,80,100,.45)'; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + ca * len, p[1] + sa * len); ctx.lineTo(p[0] + sa * 1.3, p[1] - ca * 1.3); ctx.fill();
+      });
+    };
+    if (kind === 'asura') {
+      // The puppet body: short spikes on a near-shaven skull, a seam where the face opens, steel everywhere.
+      Object.assign(base, { bulk: 1.1, legK: 1.04, skin: '#e9c2a2' });
+      head.hair = HAIR.spiky(HC, { count: 7, tips: [2.6, 6, 10.5, 12.5, 10, 5, 2.4] });
+      head.mouth = 'neutral'; head.attackMouth = 'shout';
+      head.marks = ctx => {
+        bar(ctx, 9.2, 3.4); bar(ctx, 9.2, 4.6);
+        pin(ctx, 6.6, 9.6, .4); pin(ctx, 4.6, 9.4, .36);
+        earRow(ctx);
+        // Mechanical seam: the face plate that splits open for the head laser.
+        line(ctx, [[-2.6, -2.4], [.6, 4.6], [3.2, 11.2]], 'rgba(60,40,40,.55)', .32);
+        line(ctx, [[-2.3, -2.6], [.9, 4.4], [3.5, 11]], 'rgba(255,235,220,.45)', .18);
+      };
+      base.back = ctx => {
+        // Two extra steel arms with blades and the segmented drill tail.
+        steelArm(ctx, [-2.4, -11], [-10.4, -17.6], [-8.6, -27.6], 2.2);
+        blade(ctx, [-8.6, -27.6], -1.35, 10);
+        steelArm(ctx, [-1.6, -8.6], [-11.6, -8.4], [-17.4, -15.6], 2.1);
+        blade(ctx, [-17.4, -15.6], -2.4, 9);
+        const pts = [[-3, -2], [-9, 1.6], [-13.4, 6.4], [-15.4, 11.6]];
+        for (let i = 0; i < 3; i++) { seg(ctx, pts[i], pts[i + 1], 3.6 - i * .6, O); seg(ctx, pts[i], pts[i + 1], 2.6 - i * .6, STEEL_D); }
+        paint(ctx, () => poly(ctx, [[-14.2, 10.4], [-17.8, 9.8], [-18.6, 17.6]]), STEEL, O, .6, () => {
+          ctx.strokeStyle = STEEL_D; ctx.lineWidth = .4; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-14.6 - i * .4, 11.6 + i * 1.8); ctx.lineTo(-17.6 + i * .1, 11 + i * 1.9); ctx.stroke(); }
+        });
+      };
+      base.front = (ctx, pose, hand) => {
+        // The near forearm opened into a chakra cannon.
+        const a = pose.attack ? -.08 : .5, ca = Math.cos(a), sa = Math.sin(a), x = hand[0], y = hand[1];
+        ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+        paint(ctx, () => { ctx.beginPath(); ctx.rect(-2.6, -2.1, 8.4, 4.2); }, STEEL, O, .7, () => {
+          ctx.fillStyle = STEEL_D; ctx.fillRect(-3, .6, 9, 2);
+          ctx.fillStyle = STEEL_L; ctx.fillRect(-2.4, -1.7, 7.6, .6);
+          ctx.strokeStyle = STEEL_D; ctx.lineWidth = .35; for (const u of [.4, 2.8]) { ctx.beginPath(); ctx.moveTo(u, -2.2); ctx.lineTo(u, 2.2); ctx.stroke(); }
+        });
+        paint(ctx, () => ell(ctx, 6, 0, 1.3, 2.4), STEEL_D, O, .6);
+        dot(ctx, 6.2, 0, 1.1, '#9fe6ff'); dot(ctx, 6.3, -.2, .5, '#ffffff');
+        ctx.restore();
+        void ca; void sa;
+      };
+    } else if (kind === 'human') {
+      // Long straight hair down the back, studs in vertical rows on both cheeks.
+      head.hair = (ctx, spec) => sweptHair(ctx, spec, HC, [[-26, 15.4], [-52, 18.6], [-80, 19.8], [-108, 19.6], [-136, 19], [-164, 18.2], [-192, 16.6], [-216, 14.6]], { valley: 13.4, sweep: .16 });
+      head.drape = HAIR.longBack(HC, 30, 12.6, { split: true });
+      head.marks = ctx => {
+        for (let i = 0; i < 3; i++) { pin(ctx, 3.6, 4.6 + i * 1.3, .36); pin(ctx, 9.9, 4.4 + i * 1.2, .32); }
+        pin(ctx, 6.4, 9.6, .38); bar(ctx, 9, 2.8);
+        earRow(ctx);
+      };
+    } else if (kind === 'animal') {
+      // The woman's body: shoulder-length bangs, a high ponytail, studs on the nose and lower lip.
+      Object.assign(base, { skin: '#f4d2b8', headScale: .97, legs: { thigh: '#232838', shin: '#232838', foot: '#2a2f45', w1: 5 } });
+      head.eyes = { type: 'rinnegan', fem: true }; head.mouth = 'lips'; head.lipColor = '#c46a5e'; head.blush = false; head.browAngle = null;
+      head.hair = HAIR.smooth(HC, { nape: 8.4, bangs: [[9.6, 1.5, 4.4], [6.4, 1.4, 1.6], [3, 1.4, 3], [-.4, 1.5, 6.8]] });
+      head.drape = (ctx, spec, pose) => {
+        const s = pose && pose.run ? 3 : 0;
+        paint(ctx, () => smooth(ctx, [[-7, -11], [-12.4, -12.4], [-15.2, -6], [-16.4 - s, 4], [-17 - s * 1.4, 15], [-14.6 - s, 10], [-12.6, 2], [-9.6, -5]]), HC, spec.outline, 1, () => {
+          ctx.fillStyle = dark(HC, .3); ctx.fillRect(-20, -2, 10, 20);
+          ctx.strokeStyle = dark(HC, .45); ctx.lineWidth = .45;
+          for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-11 - i, -9); ctx.quadraticCurveTo(-15 - i, 0, -15.6 - i * .4 - s, 12); ctx.stroke(); }
+          ctx.fillStyle = hairGloss(HC); ell(ctx, -12.4, -8, 1.6, 2.6, .4); ctx.fill();
+        });
+        paint(ctx, () => ell(ctx, -9.6, -10, 1.8, 1.6), '#2a2f3c', spec.outline, .6);
+      };
+      head.marks = ctx => {
+        bar(ctx, 9.1, 3.2); pin(ctx, 9.6, 4.8, .32);
+        pin(ctx, 5.6, 9.7, .34); pin(ctx, 7.2, 9.6, .32);
+        earRow(ctx);
+      };
+    } else if (kind === 'preta') {
+      // The stout one: hair dragged back into a short tail, a round heavy jaw, a row of studs on the chin.
+      Object.assign(base, { bulk: 2.6, legK: .98, headScale: 1.06, skin: '#eec09c',
+        legs: { thigh: '#232838', shin: '#232838', foot: '#2a2f45', w1: 6.8, w2: 5.4 } });
+      head.hair = HAIR.smooth(HC, { nape: 5.6 });
+      head.back = (ctx, spec) => {
+        paint(ctx, () => smooth(ctx, [[-9, -9.6], [-13.4, -10.6], [-17.4, -7.6], [-15.6, -5], [-12.4, -6.2], [-10, -5]]), HC, spec.outline, .9, () => {
+          ctx.fillStyle = dark(HC, .3); ctx.fillRect(-20, -8, 12, 6);
+        });
+        paint(ctx, () => ell(ctx, -10.8, -8.4, 1.6, 1.8), '#2a2f3c', spec.outline, .6);
+      };
+      head.mouth = 'neutral'; head.attackMouth = 'shout';
+      head.marks = ctx => {
+        for (let i = 0; i < 4; i++) pin(ctx, 3.4 + i * 1.5, 10.6 + Math.abs(i - 1.5) * -.25, .36);
+        bar(ctx, 9.2, 3.6);
+        earRow(ctx);
+        // Heavy jowl line.
+        ctx.strokeStyle = 'rgba(150,80,70,.4)'; ctx.lineWidth = .4; ctx.beginPath(); ctx.moveTo(2, 8); ctx.quadraticCurveTo(1.6, 10.4, 3, 11.6); ctx.stroke();
+      };
+    } else {
+      // Naraka: wild upright spikes, studs in horizontal rows across both cheeks.
+      head.hair = HAIR.spiky(HC, { count: 9, tips: [6, 9.4, 12.4, 11.2, 13.4, 11.6, 10.2, 8, 5.4] });
+      head.marks = ctx => {
+        for (let i = 0; i < 3; i++) { pin(ctx, 1.8 + i * 1.2, 5.6, .32); pin(ctx, 9.2 + i * .5, 5.4, .28); }
+        bar(ctx, 9.1, 2.9); pin(ctx, 6.2, 9.7, .38); pin(ctx, 7.6, 9.6, .34);
+        earRow(ctx); pin(ctx, -3.2, 4.9, .34);
+      };
+    }
+    const spec = akatsukiSpec(base);
+    if (kind === 'preta') spec.arms = Object.assign({}, spec.arms, { w1: 6.6, w2: 6.2 });
+    if (kind === 'asura') spec.arms = Object.assign({}, spec.arms, { w1: 5.8, w2: 5.4 });
+    return spec;
+  }
+
   function robeSpec(base, robe, trim) {
     return Object.assign({
       outline: '#2b2330', skin: '#f3e1d6',
@@ -1467,6 +1590,105 @@
           HAIR.narutoFringe(hc)(ctx, spec);
           // Two horn-like spikes standing up from the crown (Hagoromo's horns).
           locks(ctx, spec, hc, [[-2.6, -18, -5.8, -32, 2.1, -1.4], [4.6, -18.4, 7.8, -31, 2, 1.2]], .9);
+        }
+      })
+    });
+  }
+
+  // Nine-Tails Chakra Mode Naruto (Z: the hundred clones): the whole body lit golden-yellow by
+  // Kurama's chakra, a black ring round the collar with seal lines running down the chest to the
+  // spiral seal on the belly, black stripes on the forearms, a short coat whose tails split into
+  // chakra flames with black flame marks, hair flared into two horns, orange slit Kurama eyes.
+  function narutoKuramaSpec() {
+    const base = narutoRikudoSpec();
+    const GOLD = '#ffcf2e', GOLD_D = '#f39a16', INK = '#14100c', O = '#6a3204', hc = '#ffe866';
+    const flameTail = (ctx, x, y, len, ang, w) => {
+      const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy, ny = ux;
+      const shape = k => {
+        ctx.beginPath(); ctx.moveTo(x - nx * w * k, y - ny * w * k);
+        ctx.quadraticCurveTo(x + ux * len * .5 * k - nx * w * .9 * k, y + uy * len * .5 * k - ny * w * .9 * k, x + ux * len * k + nx * w * .5, y + uy * len * k + ny * w * .5);
+        ctx.quadraticCurveTo(x + ux * len * .45 * k + nx * w * 1.2 * k, y + uy * len * .45 * k + ny * w * 1.2 * k, x + nx * w * k, y + ny * w * k);
+        ctx.closePath();
+      };
+      paint(ctx, () => shape(1), GOLD_D, O, .8, () => { ctx.fillStyle = GOLD; shape(.78); ctx.fill(); ctx.fillStyle = '#fff4b4'; shape(.42); ctx.fill(); });
+    };
+    return Object.assign({}, base, {
+      outline: O,
+      legs: { thigh: GOLD_D, shin: GOLD, foot: '#2a1606', w1: 5.4, w2: 4.4 },
+      arms: {
+        upper: GOLD, lower: GOLD, w1: 4.8, w2: 4.2, cuff: INK,
+        pattern(ctx, p0, p1, p2, far) {
+          // Two black seal stripes round the forearm and one down the upper arm.
+          for (const t of [.3, .55]) {
+            const m = lerp(p1, p2, t), dx = p2[0] - p1[0], dy = p2[1] - p1[1], L = Math.hypot(dx, dy) || 1;
+            line(ctx, [[m[0] - dy / L * 2.2, m[1] + dx / L * 2.2], [m[0] + dy / L * 2.2, m[1] - dx / L * 2.2]], INK, .75);
+          }
+          line(ctx, [lerp(p0, p1, .25), lerp(p0, p1, .8)], far ? '#0c0a08' : INK, .7);
+        }
+      },
+      torso: {
+        base: GOLD, paint: ctx => {
+          ctx.fillStyle = 'rgba(255,252,214,.5)'; ctx.fillRect(-9, -14, 18, 3.2);
+          ctx.fillStyle = 'rgba(232,120,10,.32)'; ctx.fillRect(-9, -5.4, 18, 5.4);
+          // Seal lines dropping from the collar ring down the chest.
+          ctx.strokeStyle = INK; ctx.lineWidth = .7; ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (const x of [-4.6, -.4, 6.4]) { ctx.moveTo(x, -13); ctx.quadraticCurveTo(x + .6, -10, x * .55 + 1.2, -7.4); }
+          ctx.stroke();
+          // The spiral seal on the belly with short radiating ticks.
+          ctx.lineWidth = .62; ctx.beginPath();
+          for (let i = 0; i <= 16; i++) { const a = i * .62, r = .2 + i * .19, px = 1.4 + Math.cos(a) * r, py = -4.6 + Math.sin(a) * r * .9; if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
+          ctx.stroke();
+          ctx.lineWidth = .5; ctx.beginPath();
+          for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + .3; ctx.moveTo(1.4 + Math.cos(a) * 3.8, -4.6 + Math.sin(a) * 3.4); ctx.lineTo(1.4 + Math.cos(a) * 4.8, -4.6 + Math.sin(a) * 4.3); }
+          ctx.stroke();
+          ctx.fillStyle = INK; ctx.fillRect(-9, -1.4, 18, 1.4);
+        }
+      },
+      back(ctx, pose) {
+        // Chakra coat-tails streaming behind as flames (longer when running).
+        const k = pose.run ? 1.35 : pose.attack ? 1.15 : 1, wv = pose.run ? Math.sin(pose.wave || 0) * .12 : 0;
+        flameTail(ctx, -6, -3, 13 * k, Math.PI * .78 + wv, 2.6);
+        flameTail(ctx, -5, -.5, 15 * k, Math.PI * .68 - wv, 2.8);
+        flameTail(ctx, -6.4, -8, 10 * k, Math.PI * .9 + wv, 2.2);
+      },
+      collar(ctx) {
+        paint(ctx, () => {
+          ctx.beginPath(); ctx.moveTo(-6.2, -11.6); ctx.lineTo(-6.8, -16.2);
+          ctx.quadraticCurveTo(-2.4, -14.8, 3.4, -14.4); ctx.quadraticCurveTo(6.4, -14.2, 8, -15.2);
+          ctx.lineTo(7.6, -12.6); ctx.quadraticCurveTo(7.4, -11.6, 6.8, -11.2); ctx.closePath();
+        }, GOLD, O, 1, () => {
+          ctx.fillStyle = 'rgba(255,252,220,.6)'; ctx.fillRect(-8, -17, 17, 1.4);
+          ctx.fillStyle = SHADE; ctx.fillRect(-9, -17, 4.4, 8);
+        });
+        // The black ring round the collar.
+        ctx.strokeStyle = INK; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.ellipse(1.6, -13, 6.6, 3.4, 0, .05 * Math.PI, .95 * Math.PI); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,240,170,.7)'; ctx.lineWidth = .35;
+        ctx.beginPath(); ctx.ellipse(1.6, -13.6, 6.6, 3.4, 0, .1 * Math.PI, .9 * Math.PI); ctx.stroke();
+      },
+      skirt: {
+        color: GOLD, hem: 5.4, flare: 2.4, opening: true, paint: (ctx, hem, hipY) => {
+          ctx.fillStyle = 'rgba(230,110,10,.3)'; ctx.fillRect(-20, hipY, 40, 3);
+          // Coat hem breaking into black flame marks.
+          ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(-20, hem + 2);
+          for (let i = 0; i < 8; i++) {
+            const x = -16 + i * 4.6, tall = i % 2 ? 5.6 : 3.4;
+            ctx.quadraticCurveTo(x - 1.8, hem - tall * .3, x - .3, hem - tall);
+            ctx.quadraticCurveTo(x + .5, hem - tall * .45, x + 2.3, hem - .2);
+          }
+          ctx.lineTo(22, hem + 2); ctx.closePath(); ctx.fill();
+        }
+      },
+      head: Object.assign({}, base.head, {
+        back(ctx, spec) { HAIR.narutoBack(hc)(ctx, spec); },
+        hair: HAIR.naruto(hc),
+        eyes: { type: 'kurama' }, mouth: 'smirk', attackMouth: 'shout', browAngle: 'angry', browColor: '#a0500a',
+        marks: whiskers('#2a1004', 1.25),
+        front(ctx, spec) {
+          HAIR.narutoFringe(hc)(ctx, spec);
+          // Hair flared up into Kurama's two horns.
+          locks(ctx, spec, hc, [[-3.2, -18, -7.4, -31.5, 2.3, -1.8], [4.2, -18.4, 8.6, -30.5, 2.2, 1.6]], .9);
         }
       })
     });
@@ -1935,6 +2157,228 @@
     };
   }
 
+  // ---------------------------------------------------------------- new Kage (new-kage-bosses.js)
+  // Darui, Sixth Raikage: dark skin, shaggy white hair falling over his left eye, half-lidded
+  // "darui" eyes and full lips, the Kumo one-strap flak vest over a dark shirt, bandaged shins,
+  // and his broad square-tipped cleaver (a short chain off the pommel) slung across the back.
+  function daruiSpec() {
+    const O = '#140d0a', SKIN = '#7a4a30', SKIN_D = '#55301e', VEST = '#ece8dc', SHIRT = '#2a2c36', PANTS = '#2b2d39', HC = '#f2f0ea';
+    const cleaver = (ctx, x, y, rot, s = 1, glow = false) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+      // chain links hanging off the pommel ring
+      ctx.strokeStyle = O; ctx.lineWidth = .9;
+      for (let i = 0; i < 4; i++) { ell(ctx, -8.4 - i * 1.5, .6 + i * .9, .9, .55, .5); ctx.stroke(); }
+      ctx.strokeStyle = '#9aa0ae'; ctx.lineWidth = .45;
+      for (let i = 0; i < 4; i++) { ell(ctx, -8.4 - i * 1.5, .6 + i * .9, .9, .55, .5); ctx.stroke(); }
+      paint(ctx, () => ell(ctx, -7.2, 0, 1.3, 1.3), '#8a8f9c', O, .55, () => { ctx.fillStyle = '#2a2c34'; ell(ctx, -7.2, 0, .55, .55); ctx.fill(); });
+      // cloth-wrapped grip and a small rectangular guard
+      line(ctx, [[-6, 0], [2.2, 0]], O, 2.8); line(ctx, [[-6, 0], [2.2, 0]], '#e4dccb', 1.9);
+      ctx.strokeStyle = '#7a6a58'; ctx.lineWidth = .35;
+      for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(-5.4 + i * 1.3, -.95); ctx.lineTo(-4.6 + i * 1.3, .95); ctx.stroke(); }
+      paint(ctx, () => { ctx.beginPath(); ctx.rect(2.2, -2.6, 1.3, 5.6); }, '#4a4c58', O, .5);
+      // the blade: straight spine on top, wide belly, square tip
+      paint(ctx, () => { ctx.beginPath(); ctx.moveTo(3.5, -1.7); ctx.lineTo(25.4, -2.6); ctx.lineTo(26.4, 1.4); ctx.lineTo(25.2, 5.4); ctx.quadraticCurveTo(14, 7, 3.5, 3.4); ctx.closePath(); },
+        '#c4cad6', O, .65, () => {
+          ctx.fillStyle = 'rgba(60,62,92,.38)'; ctx.fillRect(2, -3, 26, 2.2);
+          ctx.fillStyle = '#f2f5fb'; ctx.beginPath(); ctx.moveTo(3.5, 2.4); ctx.quadraticCurveTo(14, 5.6, 25.4, 4.2); ctx.lineTo(25.2, 5.6); ctx.quadraticCurveTo(14, 7.2, 3.5, 3.6); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(6, -.8, 15, .5);
+          if (glow) { ctx.fillStyle = 'rgba(40,30,70,.35)'; ctx.fillRect(2, -3, 26, 10); }
+        });
+      // the hole near the tip
+      paint(ctx, () => ell(ctx, 21.6, .6, 1.25, 1.25), '#2c2a36', O, .5, () => { ctx.fillStyle = 'rgba(255,255,255,.25)'; ell(ctx, 21.4, 1.2, 1, .5); ctx.fill(); });
+      ctx.restore();
+    };
+    return {
+      outline: O, skin: SKIN, skinShade: SKIN_D, bulk: 1.3, headScale: .95, legK: 1.15,
+      legs: { thigh: PANTS, shin: PANTS, foot: '#20212b', wrap: '#e8e4da', w1: 6, w2: 4.9 },
+      arms: { upper: SKIN, lower: SKIN, w1: 5.6, w2: 5, bare: true, cap: SHIRT, guard: '#262833' },
+      torso: {
+        base: SHIRT,
+        over(ctx) {
+          flakVest(VEST, { kumo: true, outline: O })(ctx);
+          // dark belt with a buckle
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-7, -2.4); ctx.quadraticCurveTo(0, -3.2, 7.8, -2.2); ctx.lineTo(7.9, .2); ctx.quadraticCurveTo(0, -.6, -6.8, .2); ctx.closePath(); }, '#24252e', O, .7, () => {
+            ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(-8, -2.8, 17, .6);
+          });
+          paint(ctx, () => { ctx.beginPath(); ctx.rect(3.4, -2.6, 2.4, 2.4); }, '#b8b0a0', O, .5);
+        }
+      },
+      back(ctx, pose) {
+        if (pose && pose.attack) return;
+        // cleaver across the back, grip over the far shoulder, blade down toward the near hip
+        cleaver(ctx, 5.4, -20.4, 2.55, .9);
+      },
+      head: {
+        hair: (ctx, spec) => spikeHair(ctx, spec, HC, [
+          [-6, 11.4], [-18, 14.2], [-30, 11.8], [-44, 15.6], [-58, 12], [-74, 16.2], [-90, 12.4], [-106, 16], [-122, 12.4],
+          [-140, 15.4], [-156, 12], [-174, 15], [-190, 11.8], [-206, 14], [-222, 11], [-236, 11.6]], HAIR_LINE),
+        eyes: { type: 'sleepy', iris: '#2a2420', lid: SKIN }, mouth: 'neutral', attackMouth: 'shout', browColor: HC, browW: .9, blush: false,
+        band: { cloth: '#1c1e28', plate: '#c3cad3', symbol: 'cloud' },
+        marks(ctx) {
+          // full dark lips
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(4.6, 7.2); ctx.quadraticCurveTo(6.8, 6.4, 9, 6.9); ctx.quadraticCurveTo(7, 9.2, 4.6, 7.2); ctx.closePath(); }, '#4a2a22', O, .4);
+          line(ctx, [[4.8, 7.3], [8.8, 7]], O, .5);
+        },
+        front(ctx, spec) {
+          fringeShadow(ctx, [[5.6, -6], [11, -5], [11.4, 5], [8, 6.4], [6, 1]]);
+          // the long fringe hanging over the left (far) eye and shorter locks over the plate
+          locks(ctx, spec, HC, [[1.2, -8.8, .4, -3.6, 1.3, 0], [4.2, -9, 4.6, -2.6, 1.4, .2], [10.4, -6.8, 11.6, 4.4, 1.5, .7], [7.6, -8.6, 9.6, 5.6, 2.3, .9]], .9);
+        }
+      },
+      front(ctx, pose, hand) {
+        if (pose.attack) cleaver(ctx, hand[0] - .4, hand[1] + .2, -.5, 1.08, true);
+      }
+    };
+  }
+
+  // Chōjūrō, Sixth Mizukage: pale, shaggy light-blue hair, rectangular glasses, shark teeth, the
+  // Kiri headband and ribbed flak vest over a navy high-collared shirt, and Hiramekarei, the twin-
+  // handled broad blade bound in bandages, strapped to his back (unwrapped in his hands to strike).
+  function chojuroSpec() {
+    const O = '#10141c', SKIN = '#f1dac8', HC = '#94c8e8', SHIRT = '#2c3552', VEST = '#71808a', PANTS = '#29304a';
+    const hirame = (ctx, x, y, rot, s, wrapped) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+      // a tassel cord looping from the joined pommel
+      line(ctx, [[-8, 0], [-10.4, 2.6], [-11.2, 5.8]], O, 1.1); line(ctx, [[-8, 0], [-10.4, 2.6], [-11.2, 5.8]], '#c8a24a', .55);
+      for (const oy of [-1.45, 1.45]) {
+        line(ctx, [[-7.4, oy], [.2, oy]], O, 2.2); line(ctx, [[-7.4, oy], [.2, oy]], '#2a3350', 1.4);
+        ctx.strokeStyle = '#7f8cb2'; ctx.lineWidth = .3;
+        for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(-6.8 + i * 1.4, oy - .7); ctx.lineTo(-6 + i * 1.4, oy + .7); ctx.stroke(); }
+      }
+      paint(ctx, () => ell(ctx, -7.8, 0, 1.1, 2.7), '#9a8a5e', O, .5);
+      paint(ctx, () => { ctx.beginPath(); ctx.rect(.2, -3, 1.7, 6); }, '#bba76c', O, .5, () => { ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(.2, -3, 1.7, .7); });
+      const blade = () => { ctx.beginPath(); ctx.moveTo(1.9, -3.3); ctx.quadraticCurveTo(14, -4.8, 25.6, -3.9); ctx.quadraticCurveTo(29.6, 0, 25.6, 3.9); ctx.quadraticCurveTo(14, 4.8, 1.9, 3.3); ctx.closePath(); };
+      if (wrapped) {
+        paint(ctx, blade, '#e6dfcd', O, .7, () => {
+          ctx.fillStyle = 'rgba(60,50,80,.26)'; ctx.fillRect(0, .6, 32, 5);
+          ctx.strokeStyle = 'rgba(120,104,84,.75)'; ctx.lineWidth = .38;
+          for (let i = 0; i < 12; i++) { ctx.beginPath(); ctx.moveTo(2.6 + i * 2.2, -5); ctx.lineTo(.6 + i * 2.2, 5); ctx.stroke(); }
+          ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(2, -3.4, 25, .7);
+        });
+      } else {
+        paint(ctx, blade, '#b6cad8', O, .7, () => {
+          ctx.fillStyle = 'rgba(40,60,100,.35)'; ctx.fillRect(0, .4, 32, 5);
+          ctx.fillStyle = 'rgba(160,230,255,.75)'; ctx.fillRect(1, -4.2, 30, 1.1); ctx.fillRect(1, 3.1, 30, 1.1);
+          line(ctx, [[3, 0], [25, 0]], 'rgba(40,60,100,.5)', .5);
+          ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(4, -1.6, 18, .5);
+        });
+        // loose bandage ends fluttering off the hilt
+        line(ctx, [[2, -2.6], [-1.4, -5.6], [-4.6, -6.4]], O, 1.5); line(ctx, [[2, -2.6], [-1.4, -5.6], [-4.6, -6.4]], '#e6dfcd', 1);
+      }
+      ctx.restore();
+    };
+    return {
+      outline: O, skin: SKIN, skinShade: '#cfa896', bulk: .3, legK: 1.16,
+      legs: { thigh: PANTS, shin: PANTS, foot: '#1e2230', wrap: '#dcd8cc', w1: 5.2, w2: 4.3 },
+      arms: { upper: SHIRT, lower: SHIRT, w1: 4.9, w2: 4.4, cuff: '#1c2236', hand: SKIN },
+      torso: {
+        base: SHIRT,
+        over(ctx) {
+          flakVest(VEST, { plain: true, ribs: true, outline: O })(ctx);
+          // shoulder straps and the zip
+          line(ctx, [[3.7, -12.6], [3.7, -.8]], dark(VEST, .5), .5);
+          ctx.fillStyle = dark(VEST, .3); ctx.fillRect(-3.6, -13.2, 1.8, 3); ctx.fillRect(5.6, -13, 1.6, 2.6);
+        }
+      },
+      collar(ctx) {
+        // the navy high collar round the neck
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-2.4, -11.6); ctx.lineTo(-2.2, -16.6); ctx.quadraticCurveTo(1.4, -17.6, 5, -16.4); ctx.lineTo(5.4, -12.2); ctx.closePath(); }, SHIRT, O, .8, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-3, -17, 3, 6); ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(-2, -16.8, 7, .5);
+        });
+      },
+      back(ctx, pose) {
+        if (pose && pose.attack) return;
+        hirame(ctx, 7, -21.6, 2.55, .88, true);
+      },
+      head: {
+        hair: (ctx, spec) => spikeHair(ctx, spec, HC, [
+          [-4, 11.4], [-16, 14.4], [-28, 11.8], [-42, 15.2], [-56, 12.2], [-72, 15.8], [-88, 12.6], [-104, 15.6], [-120, 12.4],
+          [-138, 15.6], [-154, 12.2], [-170, 15.6], [-186, 12.6], [-200, 15.4], [-214, 11.8], [-228, 12.4], [-238, 10.6]], HAIR_LINE),
+        eyes: { type: 'normal', iris: '#5664a6' }, mouth: 'shark', attackMouth: 'shark', browColor: '#5a88a8', browW: .6, blush: false, browAngle: 'sad',
+        band: { cloth: '#26304a', plate: '#c9d1da', symbol: 'mist' },
+        marks(ctx, spec) {
+          // rectangular glasses: thin dark frames, faint blue lenses with a glint, arm back to the ear
+          const lens = (x0, y0, x1, y1) => {
+            ctx.fillStyle = 'rgba(170,215,240,.26)'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+            ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.moveTo(x0 + 1, y1 - .4); ctx.lineTo(x0 + 2.2, y0 + .3); ctx.lineTo(x0 + 2.9, y0 + .3); ctx.lineTo(x0 + 1.7, y1 - .4); ctx.fill();
+            ctx.strokeStyle = spec.outline; ctx.lineWidth = .62; ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+          };
+          lens(-.5, -.3, 5, 4.6); lens(6.3, -.4, 10.1, 4.3);
+          line(ctx, [[5, 1], [6.3, .9]], spec.outline, .55);
+          line(ctx, [[-.5, .8], [-3.2, 1.2]], spec.outline, .55);
+        },
+        front(ctx, spec) {
+          fringeShadow(ctx, [[-3, -6], [10.6, -5.4], [10.6, -2], [4, -2.6], [-3, -2]]);
+          // shaggy bangs hanging over the plate and down the cheeks
+          locks(ctx, spec, HC, [[-.8, -8.4, -2.2, 6.6, 1.6, -.6], [2, -8.8, 1.6, -1.4, 1.3, -.2], [5, -8.8, 5.6, -.6, 1.3, .1], [8, -8.4, 9.2, -.4, 1.3, .3], [10.4, -6.6, 11.4, 6, 1.3, .6]], .85);
+        }
+      },
+      front(ctx, pose, hand) {
+        if (pose.attack) hirame(ctx, hand[0] - .4, hand[1] + .2, -.4, 1, false);
+      }
+    };
+  }
+
+  // Kurotsuchi, Fourth Tsuchikage: short black bob with side locks, pink eyes, the Iwa forehead
+  // protector, a red long-sleeved top under the maroon Iwa vest with its single shoulder guard, a
+  // pink scarf round the neck and a short skirt over mesh.
+  function kurotsuchiSpec() {
+    const O = '#1a1014', SKIN = '#f6dac6', HC = '#1d1b24', SHIRT = '#b5332e', VEST = '#7a3830', SCARF = '#e2708e', SKIRT = '#3e2a30';
+    return {
+      outline: O, skin: SKIN, skinShade: '#dcaa96', bulk: -.5, legK: 1.12,
+      legs: { thigh: '#30262e', shin: '#30262e', foot: '#2a2026', w1: 4.8, w2: 4, wrap: '#d8cfc6' },
+      arms: { upper: SHIRT, lower: SHIRT, w1: 4.5, w2: 3.9, cuff: dark(SHIRT, .25), hand: SKIN },
+      torso: {
+        base: SHIRT,
+        over(ctx) {
+          flakVest(VEST, { plain: true, outline: O })(ctx);
+          ctx.fillStyle = dark(VEST, .3); ctx.fillRect(-.4, -9.6, 2.2, 3.6); ctx.fillRect(2.6, -9.6, 2.2, 3.6);
+          line(ctx, [[-.4, -8.4], [1.8, -8.4]], dark(VEST, .55), .35); line(ctx, [[2.6, -8.4], [4.8, -8.4]], dark(VEST, .55), .35);
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.4, -2.4); ctx.quadraticCurveTo(0, -3, 7.2, -2.2); ctx.lineTo(7.3, -.4); ctx.quadraticCurveTo(0, -1.2, -6.2, -.4); ctx.closePath(); }, '#2a2026', O, .6);
+        }
+      },
+      skirt: {
+        color: SKIRT, hem: 11.4, flare: .8, paint: (ctx, hem, hipY) => {
+          // mesh showing through the slit, a dark hem band
+          ctx.strokeStyle = 'rgba(200,180,190,.22)'; ctx.lineWidth = .3;
+          for (let i = -8; i < 10; i += 1.6) { ctx.beginPath(); ctx.moveTo(i, hipY); ctx.lineTo(i + 4, hem); ctx.stroke(); ctx.beginPath(); ctx.moveTo(i + 4, hipY); ctx.lineTo(i, hem); ctx.stroke(); }
+          ctx.fillStyle = dark(SKIRT, .35); ctx.fillRect(-20, hem - 1, 40, 1.6);
+        }
+      },
+      collarBack(ctx, pose) {
+        // the scarf's tail trailing behind
+        const run = pose && pose.run ? 1 : 0;
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-3, -15.4); ctx.quadraticCurveTo(-8, -14 - run * 2, -12 - run * 4, -10 - run * 4); ctx.lineTo(-10.6 - run * 4, -8 - run * 3); ctx.quadraticCurveTo(-7, -11.4, -2.4, -12.6); ctx.closePath(); }, SCARF, O, .8, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-14, -12, 10, 6);
+        });
+      },
+      collar(ctx) {
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-2.8, -12.2); ctx.quadraticCurveTo(-3.6, -15.6, -1.6, -16.6); ctx.quadraticCurveTo(2.4, -17.6, 5.6, -16); ctx.quadraticCurveTo(6.4, -13.4, 5.4, -12); ctx.quadraticCurveTo(1.4, -11, -2.8, -12.2); ctx.closePath(); }, SCARF, O, .85, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-4, -14, 12, 3);
+          ctx.strokeStyle = dark(SCARF, .4); ctx.lineWidth = .35;
+          ctx.beginPath(); ctx.moveTo(-2, -15.4); ctx.quadraticCurveTo(1.6, -14.4, 5, -15.2); ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(-1, -16.6, 5, .5);
+        });
+      },
+      shoulder(ctx) {
+        // the Iwa vest's single rounded shoulder guard on the near shoulder
+        paint(ctx, () => smooth(ctx, [[-6.6, -13.2], [-2.2, -14.2], [.6, -12.2], [-.6, -9.6], [-5.8, -9.4], [-7.6, -11]]), VEST, O, .9, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-9, -11, 12, 3);
+          ctx.fillStyle = 'rgba(255,255,255,.22)'; ell(ctx, -3.2, -12.8, 2.4, .6); ctx.fill();
+        });
+      },
+      head: {
+        hair: HAIR.smooth(HC, { nape: 8.6 }),
+        eyes: { type: 'normal', iris: '#c24868', fem: true }, mouth: 'smile', attackMouth: 'shout', browColor: HC, browW: .6,
+        band: { cloth: '#3a2a2e', plate: '#c9d1da', symbol: 'stone' },
+        front(ctx, spec) {
+          // side locks framing the face and a short fringe over the plate
+          locks(ctx, spec, HC, [[-1.2, -8.4, -2.4, 8.4, 1.9, -.6], [10.2, -6.8, 10.8, 6.4, 1.4, .5], [1.8, -8.8, 1.2, -5, 1.2, 0], [5, -8.9, 5.2, -5.6, 1.2, 0], [8, -8.4, 8.8, -5.2, 1.1, .2]], .85);
+        }
+      }
+    };
+  }
+
   function tsunadeSpec() {
     const O = '#2a1a18', HAORI = '#6f9c58', hair = '#f3d36a', skin = '#f9dcc6';
     return {
@@ -2227,6 +2671,285 @@
     });
   }
 
+  // ---------------------------------------------------------------- Uchiha clan (uchiha-bosses.js)
+  // The Uchiha fan (uchiwa): red upper lobe, white lower lobe, a short white handle.
+  function uchihaFan(ctx, x, y, s, O) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    paint(ctx, () => poly(ctx, [[-.38, 1.1], [.38, 1.1], [.34, 3], [-.34, 3]]), '#f2eee6', O, .32);
+    paint(ctx, () => ell(ctx, 0, 0, 1.8, 1.62), '#f2eee6', O, .36, () => {
+      ctx.fillStyle = '#c81e2a'; ctx.fillRect(-2, -2, 4, 2.05);
+      ctx.fillStyle = '#8c1018'; ctx.fillRect(-2, -.35, 4, .4);
+      ctx.fillStyle = 'rgba(255,255,255,.4)'; ell(ctx, -.5, -1.05, .8, .3); ctx.fill();
+    });
+    ctx.restore();
+  }
+  // Mangekyō patterns painted over an eye (same iris frame as drawEye): Shisui's four-bladed
+  // pinwheel, Fugaku's three curved petals round a ring, Indra's six-pointed star.
+  function mangekyoEye(ctx, x, y, w, h, near, kind) {
+    const ix = x + w * .16, iy = y + h * .14, irx = w * .74, iry = h * .86, ink = '#16050a';
+    ctx.save(); eyeShape(ctx, x, y, w, h, near ? -1 : 1); ctx.clip();
+    ell(ctx, ix, iy, irx, iry); ctx.fillStyle = '#d0121e'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,110,90,.7)'; ell(ctx, ix + irx * .1, iy + iry * .55, irx * .7, iry * .4); ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = irx * .2; ell(ctx, ix, iy, irx, iry); ctx.stroke();
+    ctx.fillStyle = ink;
+    const P = (a, r) => [ix + Math.cos(a) * irx * r, iy + Math.sin(a) * iry * r];
+    if (kind === 'shisui') {
+      for (let i = 0; i < 4; i++) {
+        const a = i * TAU / 4 + .4, p0 = P(a, .18), p1 = P(a + .2, 1), p2 = P(a + .95, .72), c1 = P(a + .05, .7);
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.quadraticCurveTo(c1[0], c1[1], p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.closePath(); ctx.fill();
+      }
+      dot(ctx, ix, iy, irx * .26, ink);
+    } else if (kind === 'fugaku') {
+      ctx.lineWidth = irx * .14; ell(ctx, ix, iy, irx * .5, iry * .5); ctx.stroke();
+      for (let i = 0; i < 3; i++) {
+        const a = -Math.PI / 2 + i * TAU / 3, p0 = P(a - .5, .5), p1 = P(a + .3, 1.02), p2 = P(a + .5, .5), c1 = P(a - .3, .95);
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.quadraticCurveTo(c1[0], c1[1], p1[0], p1[1]); ctx.quadraticCurveTo(P(a + .2, .7)[0], P(a + .2, .7)[1], p2[0], p2[1]); ctx.closePath(); ctx.fill();
+      }
+      dot(ctx, ix, iy, irx * .2, ink);
+    } else {
+      for (let i = 0; i < 3; i++) {
+        ctx.save(); ctx.translate(ix, iy); ctx.scale(irx, iry); ctx.rotate(i * Math.PI / 3 + .3);
+        ell(ctx, 0, 0, .98, .22); ctx.fill(); ctx.restore();
+      }
+      ctx.fillStyle = '#d0121e'; ell(ctx, ix, iy, irx * .3, iry * .3); ctx.fill();
+      dot(ctx, ix, iy, irx * .16, ink);
+    }
+    ctx.restore();
+    dot(ctx, ix - irx * .34, iy - iry * .36, Math.max(.3, w * .2), 'rgba(255,255,255,.85)');
+  }
+  // Shisui's thick curly mop: rounded lobes all round the crown instead of spikes, each with a
+  // curl hook, lit on top and deep at the nape.
+  function curlyHair(ctx, spec, c, opts = {}) {
+    const O = spec.outline, cx = -.6, cy = -2.2, R = opts.r || 11.4, n = opts.n || 11, a0 = -10, a1 = -240, lobes = [];
+    const P = (a, r) => [cx + Math.cos(a * DEG) * r, cy + Math.sin(a * DEG) * r];
+    const build = () => {
+      ctx.beginPath();
+      const s = P(a0, R - 1.4); ctx.moveTo(s[0], s[1]);
+      lobes.length = 0;
+      for (let i = 0; i < n; i++) {
+        const t0 = a0 + (a1 - a0) * i / n, t1 = a0 + (a1 - a0) * (i + 1) / n;
+        const bump = (opts.bump || 2.8) * (1 + .28 * Math.sin(i * 2.3 + 1)) * (i === n - 1 ? .6 : 1);
+        const q = P(t1, R - .6 - (i === n - 1 ? 1.4 : 0)), c1 = P(t0 + (t1 - t0) * .1, R + bump * 1.3), c2 = P(t0 + (t1 - t0) * .9, R + bump * 1.3);
+        ctx.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], q[0], q[1]);
+        lobes.push({ m: P((t0 + t1) / 2, R + bump * .45), a: (t0 + t1) / 2, b: bump, v: P(t1, R - 1.8) });
+      }
+      for (const [x, y] of [[-5.8, 6.6], [-4.6, 1], [-2.2, -4.4], [3.4, -6.4], [9.8, -5.6]]) ctx.lineTo(x, y);
+      ctx.closePath();
+    };
+    paint(ctx, build, c, O, 1.1, () => {
+      const sh = dark(c, .3), deep = dark(c, .5);
+      ctx.fillStyle = sh; ctx.fillRect(-30, -30, 60, 60);
+      ctx.fillStyle = c; ell(ctx, cx + 3, cy - 5.6, 12.4, 9.4, -.25); ctx.fill();
+      ctx.fillStyle = rgba(deep, .75); ell(ctx, cx - 9, cy + 7, 6, 7); ctx.fill();
+      // Each lobe: a curl hook and a deep crease where two lobes meet.
+      ctx.lineCap = 'round';
+      for (const l of lobes) {
+        const r = l.b * .75 + .8, a = l.a * DEG;
+        ctx.strokeStyle = rgba(deep, .9); ctx.lineWidth = .5;
+        ctx.beginPath(); ctx.arc(l.m[0], l.m[1], r, a + 1.2, a + 4.4); ctx.stroke();
+        ctx.strokeStyle = rgba(hairGloss(c), .7); ctx.lineWidth = .4;
+        ctx.beginPath(); ctx.arc(l.m[0] + Math.cos(a) * .4, l.m[1] + Math.sin(a) * .4, r * .7, a - 1.4, a - .2); ctx.stroke();
+        ctx.fillStyle = rgba(deep, .8); ell(ctx, l.v[0], l.v[1], .9, .9); ctx.fill();
+      }
+      shine(ctx, cx + 1.6, cy - .4, 10, -150, -58, 2.2, hairGloss(c), 6);
+    });
+  }
+
+  // Uchiha Shisui: thick curly black hair, Konoha forehead protector, the green flak jacket over
+  // the navy shinobi suit, a tantō across the small of the back, Sharingan (four-bladed Mangekyō
+  // when he casts).
+  function shisuiSpec() {
+    const O = '#12141c', HAIRC = '#1b1a23', SUIT = '#27314a', VEST = '#5e7b3c', BLADE = '#cfd6e2';
+    const tanto = (ctx, x, y, rot, len) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+      line(ctx, [[-4.2, 0], [0, 0]], O, 2.2); line(ctx, [[-4, 0], [-.2, 0]], '#2a2430', 1.4);
+      paint(ctx, () => { ctx.beginPath(); ctx.rect(0, -1.2, .8, 2.4); }, '#5a5462', O, .45);
+      paint(ctx, () => { ctx.beginPath(); ctx.moveTo(.8, -.8); ctx.lineTo(len - 1.6, -.7); ctx.lineTo(len, .2); ctx.lineTo(.8, .75); ctx.closePath(); }, BLADE, O, .5, () => {
+        ctx.fillStyle = '#f6f9ff'; ctx.fillRect(.8, -.8, len, .5);
+      });
+      ctx.restore();
+    };
+    return {
+      outline: O, skin: '#f1d2b6', skinShade: '#d0a28c', legK: 1.12,
+      legs: { thigh: SUIT, shin: SUIT, foot: '#202638', wrap: '#e6e2d8', holster: '#1c2436', w1: 5.4, w2: 4.3 },
+      arms: { upper: SUIT, lower: SUIT, w1: 4.8, w2: 4.2, cuff: '#3a4560', hand: '#262c3e' },
+      torso: { base: SUIT, over: flakVest(VEST, { outline: O }) },
+      back(ctx) {
+        // Tantō slung across the small of the back, hilt out behind the far hip.
+        line(ctx, [[7.6, -3], [-12.8, -1.4]], O, 2.6);
+        line(ctx, [[7.4, -3], [-12.6, -1.4]], '#1e2230', 1.7);
+        line(ctx, [[7.2, -3.4], [-12.2, -1.9]], 'rgba(160,170,210,.35)', .35);
+        tanto(ctx, 7.8, -3.1, Math.PI + .08, 0);
+      },
+      shoulder(ctx) {
+        // Red Uzumaki swirl on the sleeve.
+        ctx.strokeStyle = '#b8352c'; ctx.lineWidth = .55; ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i <= 14; i++) { const a = i * .55, r = .15 + i * .085; const x = -2.5 + Math.cos(a) * r, y = -8.6 + Math.sin(a) * r; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+        ctx.stroke();
+      },
+      head: {
+        hair: (ctx, sp) => curlyHair(ctx, sp, HAIRC, { n: 11, bump: 2.9 }),
+        eyes: { type: 'sharingan' }, browAngle: 'angry', browColor: HAIRC, blush: false, mouth: 'neutral', attackMouth: 'shout',
+        band: { cloth: '#1c2433', plate: '#cdd5de', symbol: 'leaf' },
+        front(ctx, spec, pose) {
+          if (pose && (pose.seal || pose.attack)) { mangekyoEye(ctx, 2.4, 2.2, 2.1, 2.65, true, 'shisui'); mangekyoEye(ctx, 7.95, 2.1, 1.48, 2.45, false, 'shisui'); }
+          // Curly locks spilling over the protector and down the temples.
+          locks(ctx, spec, HAIRC, [[9.6, -7.4, 11.2, 1.6, 1.5, 1.4], [-1.4, -8.6, -3.2, -.6, 1.5, -1.2], [5.6, -8.8, 6.6, -4.6, 1.3, 1.1], [2.2, -9, 1.4, -5.2, 1.25, -.9]], .85);
+          ctx.strokeStyle = rgba(dark(HAIRC, .5), .9); ctx.lineWidth = .4;
+          for (const [x, y] of [[10.6, -.6], [-2.8, -2.2], [6.4, -5.4], [1.6, -5.8]]) { ctx.beginPath(); ctx.arc(x, y, .9, -.6, 2.6); ctx.stroke(); }
+        }
+      },
+      front(ctx, pose, hand) {
+        if (pose.attack) tanto(ctx, hand[0] - .2, hand[1] + .2, -.2, 13);
+      }
+    };
+  }
+
+  // Uchiha Fugaku, clan head and chief of the Konoha Military Police: short swept-back black hair,
+  // deep lines under stern eyes, the dark high-collared police shirt under a grey-green flak
+  // jacket, the police emblem (Uchiha fan in a four-point star) on the sleeve.
+  function fugakuSpec() {
+    const O = '#141218', HAIRC = '#1d1b22', SHIRT = '#2b2f3f', VEST = '#5f6c4a';
+    return {
+      outline: O, skin: '#ecccb0', skinShade: '#c49a84', bulk: .5, legK: 1.08,
+      legs: { thigh: SHIRT, shin: SHIRT, foot: '#22242e', wrap: '#e2ddd0', holster: '#1c1e28', w1: 5.8, w2: 4.6 },
+      arms: { upper: SHIRT, lower: SHIRT, w1: 5.2, w2: 4.6, cuff: '#3c4152' },
+      torso: { base: SHIRT, over: flakVest(VEST, { outline: O }) },
+      collarBack(ctx) {
+        // The police shirt's high collar standing up behind the vest, Uchiha fan at the back.
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.4, -12); ctx.lineTo(-7.4, -19); ctx.quadraticCurveTo(-2, -17.4, 2.8, -16.6); ctx.lineTo(5, -12.2); ctx.closePath(); },
+          dark(SHIRT, .15), O, 1, () => { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-9, -20, 5, 9); });
+        uchihaFan(ctx, -5.2, -15.4, .95, O);
+      },
+      collar(ctx) {
+        paint(ctx, () => {
+          ctx.beginPath(); ctx.moveTo(-6.6, -11.4); ctx.lineTo(-7.2, -17.2); ctx.quadraticCurveTo(-2.6, -15.6, 2.6, -14.8);
+          ctx.quadraticCurveTo(6, -14.6, 8, -15.8); ctx.lineTo(7.6, -12.6); ctx.quadraticCurveTo(7.2, -11.6, 6.4, -11.2); ctx.closePath();
+        }, SHIRT, O, 1, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-9, -18, 5, 8);
+          ctx.fillStyle = 'rgba(160,170,210,.25)'; ctx.fillRect(-7.2, -17.3, 14, .5);
+        });
+        line(ctx, [[3.4, -14.6], [3.9, -11.6]], '#0c0c12', .5);
+      },
+      shoulder(ctx) {
+        // Konoha Military Police emblem on the sleeve: four-point star round the Uchiha fan.
+        ctx.save(); ctx.translate(-2.6, -8.8);
+        paint(ctx, () => poly(ctx, [[0, -3], [.8, -.8], [3, 0], [.8, .8], [0, 3], [-.8, .8], [-3, 0], [-.8, -.8]]), '#d8d4ca', O, .4);
+        ctx.restore();
+        uchihaFan(ctx, -2.6, -9.2, .62, O);
+      },
+      head: {
+        hair: (ctx, sp) => sweptHair(ctx, sp, HAIRC, [[-30, 13], [-56, 14.6], [-84, 15.2], [-112, 15.4], [-140, 15], [-166, 14], [-192, 13], [-216, 12.2]], { valley: 11.7, sweep: .12 }),
+        eyes: { type: 'sharingan' }, brows: 'thick', browW: 1.2, browAngle: 'angry', browColor: HAIRC, blush: false, mouth: 'frown', attackMouth: 'shout',
+        marks(ctx) {
+          // Stern face: lines under the eyes, the fold beside the mouth, a furrowed brow.
+          ctx.strokeStyle = 'rgba(120,70,60,.6)'; ctx.lineWidth = .38; ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(.8, 5.6); ctx.quadraticCurveTo(2.4, 6.4, 4, 5.8);
+          ctx.moveTo(6.8, 5.2); ctx.quadraticCurveTo(7.9, 5.7, 9.1, 5.2);
+          ctx.moveTo(8.7, 6.2); ctx.quadraticCurveTo(8, 7.6, 7.8, 8.8);
+          ctx.moveTo(5.2, -2.6); ctx.lineTo(5.6, -.8);
+          ctx.stroke();
+        },
+        front(ctx, spec, pose) {
+          if (pose && (pose.seal || pose.attack)) { mangekyoEye(ctx, 2.4, 2.2, 2.1, 2.65, true, 'fugaku'); mangekyoEye(ctx, 7.95, 2.1, 1.48, 2.45, false, 'fugaku'); }
+          fringeShadow(ctx, [[-2, -6], [3, -6.4], [2, -1], [-1.4, -1]]);
+          locks(ctx, spec, HAIRC, [[.4, -8.8, -.6, -2.4, 1.35, -.6], [9.2, -7.6, 10.4, -2.6, 1.2, .7], [3.4, -9.2, 3.8, -5.6, 1.1, .2]], .85);
+        }
+      },
+      front(ctx, pose, hand) {
+        if (!pose.attack) return;
+        ctx.save(); ctx.translate(hand[0], hand[1]); ctx.rotate(0);
+        paint(ctx, () => poly(ctx, [[1.4, -1.3], [9, 0], [1.4, 1.3]]), '#a4adb8', O, .6, () => { ctx.fillStyle = '#e6ecf2'; ctx.fillRect(1.4, -1.3, 8, 1.1); });
+        line(ctx, [[-2.8, 0], [1.4, 0]], '#3a2a24', 1.4);
+        ctx.restore();
+      }
+    };
+  }
+
+  // Ōtsutsuki Indra (enemy): the Sage's elder son. Long black mane falling to the waist with a
+  // spiky crown and two long bangs framing the face, a pale grey high-collared robe crossed over a
+  // dark inner kimono, black obi, dark hakama, Mangekyō Sharingan. Chidori crackles in his hand.
+  function indraSpec() {
+    const O = '#110f17', HAIRC = '#15131b', ROBE = '#d7d3cb', ROBE_D = '#a7a2a0', INNER = '#2a2738', OBI = '#1c1a24', HAKAMA = '#2b2935';
+    return {
+      outline: O, skin: '#efdccd', skinShade: '#c6a8a0', bulk: .3, legK: 1.14,
+      legs: { thigh: HAKAMA, shin: HAKAMA, foot: '#1a1920', w1: 6.4, w2: 5.4 },
+      arms: { upper: ROBE, lower: ROBE, w1: 5.8, w2: 6.2, cuff: ROBE_D },
+      torso: {
+        base: ROBE, paint: ctx => {
+          // Kimono crossing: a dark inner collar V, the robe's overlapping front edge, folds.
+          ctx.fillStyle = INNER; ctx.beginPath(); ctx.moveTo(.6, -13.6); ctx.lineTo(6.8, -13.6); ctx.lineTo(4.2, -6.4); ctx.closePath(); ctx.fill();
+          line(ctx, [[.6, -13.6], [4.2, -6.4], [6.4, -1]], O, .55);
+          line(ctx, [[6.8, -13.6], [4.2, -6.4]], O, .5);
+          line(ctx, [[1.2, -13.4], [4.5, -6.8]], 'rgba(255,255,255,.65)', .3);
+          ctx.strokeStyle = 'rgba(90,84,110,.45)'; ctx.lineWidth = .38;
+          for (const [x0, x1] of [[-3.2, -4], [-.2, .8], [7.2, 6.6]]) { ctx.beginPath(); ctx.moveTo(x0, -11); ctx.quadraticCurveTo(x0 + .7, -6, x1, -2.6); ctx.stroke(); }
+          // Black obi with a lit edge and a knot.
+          ctx.fillStyle = OBI; ctx.fillRect(-9, -3.6, 19, 3);
+          ctx.fillStyle = 'rgba(170,170,210,.35)'; ctx.fillRect(-9, -3.6, 19, .45);
+          ctx.fillStyle = '#2c2a36'; ctx.fillRect(-9, -1.4, 19, .5);
+        }
+      },
+      skirt: {
+        color: ROBE, hem: 9.4, flare: 2, paint: (ctx, hem, hipY) => {
+          ctx.fillStyle = ROBE_D; ctx.fillRect(-20, hem - 1.3, 40, 1.6);
+          ctx.strokeStyle = 'rgba(90,84,110,.4)'; ctx.lineWidth = .38;
+          for (const x of [-6, -1.6, 5]) { ctx.beginPath(); ctx.moveTo(x, hipY + 1); ctx.quadraticCurveTo(x - .6, (hipY + hem) / 2, x - 1.2, hem); ctx.stroke(); }
+        }
+      },
+      collarBack(ctx) {
+        // Very tall stand-up collar flaring behind the head.
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.4, -12); ctx.lineTo(-8.8, -22.4); ctx.quadraticCurveTo(-2.4, -19.8, 3.4, -19); ctx.lineTo(6.4, -12.2); ctx.closePath(); },
+          ROBE_D, O, 1, () => { ctx.fillStyle = 'rgba(40,30,60,.35)'; ctx.fillRect(-10, -24, 6, 14); ctx.fillStyle = INNER; ctx.fillRect(-10, -12.8, 20, 1); });
+      },
+      collar(ctx) {
+        paint(ctx, () => {
+          ctx.beginPath(); ctx.moveTo(-6.9, -10.8); ctx.lineTo(-7.8, -19.4);
+          ctx.quadraticCurveTo(-2.6, -17, 2.2, -16); ctx.lineTo(2.6, -13.4); ctx.quadraticCurveTo(-1.6, -12.6, -2.4, -10.8); ctx.closePath();
+        }, ROBE, O, 1.05, () => {
+          ctx.fillStyle = 'rgba(40,30,60,.24)'; ctx.fillRect(-10, -21, 4.4, 11);
+          ctx.fillStyle = INNER; ctx.beginPath(); ctx.moveTo(-7.8, -19.4); ctx.quadraticCurveTo(-2.6, -17, 2.2, -16); ctx.lineTo(2.2, -15.2); ctx.quadraticCurveTo(-2.6, -16.2, -7.8, -18.4); ctx.fill();
+        });
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(6.6, -13.6); ctx.lineTo(9.2, -18); ctx.quadraticCurveTo(9.6, -14.4, 8.2, -11.4); ctx.closePath(); }, ROBE, O, .9, () => {
+          ctx.fillStyle = INNER; ctx.fillRect(8.6, -19, 1.6, 8);
+        });
+      },
+      head: {
+        drape: maneDrape(HAIRC),
+        hair: (ctx, sp) => sweptHair(ctx, sp, HAIRC, [[-18, 14.6], [-44, 18.6], [-68, 21.4], [-94, 22.4], [-120, 21.6], [-146, 22], [-172, 20.6], [-198, 18.6], [-222, 16]], { valley: 13.2, sweep: .26 }),
+        noEyes: true, browAngle: 'angry', browColor: HAIRC, blush: false, mouth: 'neutral', attackMouth: 'frown',
+        marks(ctx, spec) {
+          drawEye(ctx, 2.4, 2.2, 2.1, 2.65, { type: 'sharingan' }, spec.outline, true);
+          drawEye(ctx, 7.95, 2.1, 1.48, 2.45, { type: 'sharingan' }, spec.outline, false);
+          mangekyoEye(ctx, 2.4, 2.2, 2.1, 2.65, true, 'indra'); mangekyoEye(ctx, 7.95, 2.1, 1.48, 2.45, false, 'indra');
+          // Faint lines under the eyes.
+          line(ctx, [[1, 5.6], [3.6, 6]], 'rgba(130,80,80,.5)', .32);
+        },
+        front(ctx, spec) {
+          fringeShadow(ctx, [[-3, -6], [3.4, -6.4], [2.2, 2], [.4, 11], [-2.4, 4]]);
+          // Two long bangs falling straight past the cheeks, short crown locks between.
+          locks(ctx, spec, HAIRC, [[10, -7.2, 11.4, 11.6, 1.6, .8], [-1.2, -8.6, -2.2, 12.4, 1.8, -1], [6.4, -8.8, 7.2, -4.4, 1.2, .4], [3.2, -9, 3.2, -4.8, 1.2, 0]], .9);
+        }
+      },
+      front(ctx, pose, hand) {
+        if (!pose.attack && !pose.seal) return;
+        // Chidori in the hand: Indra is its first user.
+        const x = hand[0] + 1.2, y = hand[1];
+        dot(ctx, x, y, 3.8, 'rgba(110,170,255,.45)');
+        dot(ctx, x, y, 2.3, 'rgba(215,236,255,.95)');
+        ctx.strokeStyle = '#eef6ff'; ctx.lineWidth = .45; ctx.lineCap = 'round';
+        for (let i = 0; i < 7; i++) {
+          const a = i * .9 + .2, r0 = 1.8, r1 = 4.8 + (i % 2) * 1.8;
+          ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0);
+          ctx.lineTo(x + Math.cos(a + .35) * (r0 + r1) * .55, y + Math.sin(a + .35) * (r0 + r1) * .55);
+          ctx.lineTo(x + Math.cos(a - .1) * r1, y + Math.sin(a - .1) * r1); ctx.stroke();
+        }
+      }
+    };
+  }
+
   // ---------------------------------------------------------------- legends (legend-bosses.js)
   // Edo Tensei eyes: the sclera turns black round the iris (drawn over an already painted eye).
   function edoSclera(ctx, x, y, w, h, near) {
@@ -2315,6 +3038,202 @@
           kageKasa(ctx, spec.outline, TRIM, '風', 3.8);
           line(ctx, [[-5.2, -7.2], [-4.4, 6]], '#4a4036', .45);
         }
+      }
+    };
+  }
+  // ---- edo-kage-bosses.js: Sandaime Raikage, Sandaime Kazekage (Sasori's puppet), Rasa.
+  // Sandaime Raikage A (Edo Tensei): a mountain of dark muscle, bushy white hair swept back, a
+  // huge drooping white moustache, the Hell Stab scar on his chest, white sleeveless haori with
+  // gold trim, rope belt, Edo cracks and black sclera.
+  function raikage3Spec() {
+    const O = '#170d08', SK = '#7a4628', SKD = '#55301b', HC = '#f3f1ea', CAPE = '#f4f2ea', GOLD = '#e8b730', PANTS = '#2b2a33';
+    return {
+      outline: O, skin: SK, skinShade: SKD, bulk: 3.6, headScale: .9,
+      legs: { thigh: PANTS, shin: PANTS, foot: '#1c1b22', w1: 8, w2: 6.6, wrap: '#d8d2c4' },
+      arms: { upper: SK, lower: SK, w1: 8.4, w2: 7.8, cuff: '#3a3a44', bare: true,
+        pattern(ctx, p0, p1, p2, far) {
+          if (far) return;
+          // Edo cracks crawling over the near biceps, a gold arm ring above the elbow.
+          const m = lerp(p0, p1, .45);
+          line(ctx, [[m[0] - 1.6, m[1] - 1.4], [m[0] - .4, m[1] + .2], [m[0] - 1, m[1] + 1.8]], 'rgba(40,24,30,.7)', .4);
+          const r = lerp(p0, p1, .78); seg(ctx, [r[0] - .3, r[1] - 1.6], [r[0] + .3, r[1] + 1.6], 2.6, O); seg(ctx, [r[0] - .3, r[1] - 1.4], [r[0] + .3, r[1] + 1.4], 1.6, GOLD);
+        } },
+      torso: {
+        base: SK, paint: ctx => {
+          // Bare, hugely muscled chest: pecs, sternum line, abs, lit slabs.
+          ctx.strokeStyle = 'rgba(48,20,10,.65)'; ctx.lineWidth = .65;
+          ctx.beginPath(); ctx.moveTo(-3.8, -9); ctx.quadraticCurveTo(.8, -6.2, 2.8, -8.6); ctx.quadraticCurveTo(5.4, -6, 9, -8.6); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(2.8, -12.8); ctx.lineTo(3, -3.2); ctx.stroke();
+          for (const y of [-6.2, -4.6, -3]) { ctx.beginPath(); ctx.moveTo(.2, y); ctx.lineTo(2.7, y + .3); ctx.moveTo(3.2, y + .3); ctx.lineTo(6.2, y); ctx.stroke(); }
+          ctx.fillStyle = 'rgba(255,215,170,.24)'; ell(ctx, 6, -10.4, 2.8, 1.3, -.2); ctx.fill(); ell(ctx, .4, -10.6, 2.4, 1.1, .2); ctx.fill();
+          // The scar his own Hell Stab left: a ragged pale gash slanting across the near pec.
+          line(ctx, [[-1.6, -12.2], [.4, -10.6], [1.2, -9], [2.6, -7.6]], '#c88a72', 1.05);
+          line(ctx, [[-1.4, -12.4], [.6, -10.8], [1.4, -9.2], [2.7, -7.8]], 'rgba(255,225,200,.55)', .35);
+          line(ctx, [[-.2, -11.6], [.9, -11.2]], '#a8664e', .35); line(ctx, [[.7, -9.8], [1.8, -9.9]], '#a8664e', .35);
+          // Edo cracks over the chest.
+          line(ctx, [[6.4, -12.6], [5.8, -11], [6.6, -9.8]], 'rgba(36,20,28,.7)', .38);
+          line(ctx, [[-4.4, -6], [-3.4, -4.6], [-4, -3.2]], 'rgba(36,20,28,.6)', .34);
+          // Open white haori panels on both sides.
+          ctx.fillStyle = CAPE;
+          ctx.beginPath(); ctx.moveTo(-15, -16); ctx.lineTo(-3, -16); ctx.quadraticCurveTo(-5, -8, -4.6, 0); ctx.lineTo(-15, 0); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(8.8, -14); ctx.lineTo(15, -14); ctx.lineTo(15, 0); ctx.lineTo(9.6, 0); ctx.quadraticCurveTo(10.6, -7, 8.8, -14); ctx.fill();
+          ctx.fillStyle = GOLD; ctx.beginPath(); ctx.moveTo(-3.4, -16); ctx.lineTo(-2.4, -16); ctx.quadraticCurveTo(-4.2, -8, -3.8, 0); ctx.lineTo(-4.8, 0); ctx.quadraticCurveTo(-5.2, -8, -3.4, -16); ctx.fill();
+          ctx.fillStyle = 'rgba(60,50,90,.22)'; ctx.fillRect(-15, -16, 6, 16);
+          // Thick twisted rope belt with a knot.
+          ctx.fillStyle = '#d9c9a0'; ctx.fillRect(-13, -3.8, 28, 3.6);
+          ctx.strokeStyle = '#8a7650'; ctx.lineWidth = .5;
+          for (let x = -12; x < 15; x += 1.6) { ctx.beginPath(); ctx.moveTo(x, -3.8); ctx.lineTo(x + 1.6, -.2); ctx.stroke(); }
+          ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-13, -3.7, 28, .6);
+          paint(ctx, () => ell(ctx, 6.4, -2, 1.8, 1.6), '#d9c9a0', O, .5);
+          line(ctx, [[6, -.6], [5.4, 2.6]], '#c8b68a', .9); line(ctx, [[7, -.6], [7.6, 2.4]], '#c8b68a', .9);
+        }
+      },
+      skirt: { color: CAPE, hem: 7.8, flare: 1.8, paint: (ctx, hem) => {
+        ctx.fillStyle = GOLD; ctx.fillRect(-21, hem - 1.6, 42, 1.6);
+        ctx.fillStyle = '#a87a10'; ctx.fillRect(-21, hem - .4, 42, .4);
+        ctx.fillStyle = PANTS; ctx.beginPath(); ctx.moveTo(-1.6, -14); ctx.lineTo(4.6, -14); ctx.lineTo(5.4, hem); ctx.lineTo(-2.4, hem); ctx.fill();
+      } },
+      shoulder(ctx) {
+        paint(ctx, () => smooth(ctx, [[-9, -13.2], [-3.4, -15], [.8, -12.8], [-.6, -8.8], [-7.8, -8.4], [-9.8, -10.6]]), CAPE, O, .95, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-11, -10.4, 13, 3);
+          ctx.fillStyle = GOLD; ctx.fillRect(-11, -9.4, 13, .9);
+          ctx.fillStyle = 'rgba(255,255,255,.5)'; ell(ctx, -3.6, -13.6, 2.6, .7, -.2); ctx.fill();
+        });
+      },
+      head: {
+        hair: (ctx, spec) => sweptHair(ctx, spec, HC, [[-30, 15.6], [-56, 19.4], [-82, 20.6], [-108, 20.4], [-134, 19.6], [-160, 18], [-186, 16], [-210, 13.4]], { valley: 13, sweep: .26 }),
+        eyes: { type: 'normal', iris: '#2a1e16' }, brows: 'thick', browW: 1.9, browColor: HC, browAngle: 'angry', mouth: 'frown', attackMouth: 'shout', blush: false,
+        marks(ctx, spec) {
+          edoCracks(ctx);
+          edoSclera(ctx, 2.4, 2.2, 2.1, 2.65, true); edoSclera(ctx, 7.95, 2.1, 1.48, 2.45, false);
+          // Huge drooping white moustache framing the mouth down to the jaw, short chin tuft.
+          paint(ctx, () => {
+            ctx.beginPath(); ctx.moveTo(4.4, 6.2); ctx.quadraticCurveTo(7.4, 4.6, 10.6, 6);
+            ctx.quadraticCurveTo(11.4, 8.6, 10.4, 11.6); ctx.lineTo(9.2, 9.2); ctx.quadraticCurveTo(7, 7.4, 4.6, 8.4);
+            ctx.quadraticCurveTo(3.4, 10.4, 2.6, 12.2); ctx.quadraticCurveTo(2, 8.6, 4.4, 6.2); ctx.closePath();
+          }, HC, spec.outline, .65, () => {
+            ctx.fillStyle = '#c8c6cc'; ctx.fillRect(0, 8.6, 12, 5);
+            ctx.strokeStyle = '#a8a6b2'; ctx.lineWidth = .3;
+            for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(5 + i * 1.4, 6.4); ctx.quadraticCurveTo(4.4 + i * 1.6, 8, 3.6 + i * 2, 10.6); ctx.stroke(); }
+          });
+          paint(ctx, () => poly(ctx, [[5, 10.2], [8.4, 9.8], [6.8, 13]]), HC, spec.outline, .55);
+        }
+      }
+    };
+  }
+  // Sandaime Kazekage as Sasori's human puppet: long ragged black hair, a stern doll's face with
+  // marionette seams down from the mouth, a dark high-collared robe over the hidden-arm torso,
+  // a pale sash and jointed wrists.
+  function kazekage3Spec() {
+    const O = '#120f14', HC = '#231c1c', ROBE = '#2e2c3a', ROBE_D = '#211f2b', SASH = '#bfb6a0', SKIN = '#e6d6c6';
+    return {
+      outline: O, skin: SKIN, skinShade: '#b4a296', bulk: .6, legK: 1.04,
+      legs: { thigh: ROBE_D, shin: ROBE_D, foot: '#1a1a20', w1: 5.4, w2: 4.6 },
+      arms: { upper: ROBE, lower: ROBE, w1: 6.2, w2: 6.4, cuff: '#4a4658',
+        pattern(ctx, p0, p1, p2, far) {
+          // Puppet wrist joint: a dark ring where the sleeve ends.
+          const m = lerp(p1, p2, .95); dot(ctx, m[0], m[1], 1.3, O); dot(ctx, m[0], m[1], .7, '#8a7a6a');
+        } },
+      torso: {
+        base: ROBE, paint: ctx => {
+          // Crossed robe front, the folds of heavy cloth and a seam where the hidden arms fold out.
+          line(ctx, [[-1.6, -13.4], [4.4, -5], [5.4, 1]], '#121018', .6);
+          line(ctx, [[-1.2, -13.2], [4.7, -5.2]], 'rgba(170,170,210,.25)', .3);
+          ctx.strokeStyle = 'rgba(130,130,180,.22)'; ctx.lineWidth = .4;
+          for (const [x0, x1] of [[-4, -4.8], [7, 7.6]]) { ctx.beginPath(); ctx.moveTo(x0, -12); ctx.quadraticCurveTo(x0 + .6, -6, x1, .4); ctx.stroke(); }
+          ctx.strokeStyle = 'rgba(10,8,14,.5)'; ctx.lineWidth = .35; ctx.setLineDash([.8, .6]);
+          ctx.beginPath(); ctx.moveTo(-6, -11); ctx.lineTo(-6.2, -4); ctx.stroke(); ctx.setLineDash([]);
+          // Pale sash tied at the waist.
+          ctx.fillStyle = SASH; ctx.fillRect(-9, -4.2, 19, 2.8);
+          ctx.fillStyle = 'rgba(80,60,40,.35)'; ctx.fillRect(-9, -1.9, 19, .5);
+          ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-9, -4.1, 19, .5);
+        }
+      },
+      skirt: { color: ROBE, hem: 7.2, flare: 1.6, paint: (ctx, hem, hipY) => {
+        ctx.strokeStyle = 'rgba(130,130,180,.22)'; ctx.lineWidth = .4;
+        for (const x of [-6, 0, 5.6]) { ctx.beginPath(); ctx.moveTo(x, hipY + 1); ctx.quadraticCurveTo(x - .6, (hipY + hem) / 2, x - 1, hem); ctx.stroke(); }
+        ctx.fillStyle = '#4a4658'; ctx.fillRect(-21, hem - 1.2, 42, 1.2);
+        ctx.fillStyle = SASH; ctx.fillRect(4.2, hipY + .4, 2.2, 6.4);
+      } },
+      collarBack(ctx) {
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.4, -12); ctx.lineTo(-7.4, -19.4); ctx.quadraticCurveTo(-2, -17.6, 3.6, -17); ctx.lineTo(6.8, -12); ctx.closePath(); }, ROBE_D, O, 1);
+      },
+      collar(ctx) {
+        paint(ctx, () => {
+          ctx.beginPath(); ctx.moveTo(-6.9, -10.8); ctx.lineTo(-7.2, -17.6); ctx.quadraticCurveTo(-2.2, -15.8, 3.6, -15.2);
+          ctx.quadraticCurveTo(6.4, -15.2, 8.2, -16.4); ctx.lineTo(7.8, -11); ctx.closePath();
+        }, ROBE, O, 1, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-10, -18, 5, 8);
+          ctx.fillStyle = '#4a4658'; ctx.fillRect(-7.4, -17.8, 16, .9);
+        });
+      },
+      head: {
+        drape(ctx, spec) { HAIR.longBack(HC, 30, 12.4, { split: true })(ctx, spec); },
+        hair: (ctx, spec) => sweptHair(ctx, spec, HC, [[-26, 14.6], [-52, 16.6], [-78, 17.4], [-104, 17.2], [-130, 16.6], [-156, 15.6], [-182, 14.6], [-208, 13.4], [-226, 12.4]], { valley: 12.2, sweep: .14 }),
+        eyes: { type: 'normal', iris: '#3a2c26' }, browAngle: 'angry', browColor: HC, mouth: 'frown', blush: false,
+        marks(ctx) {
+          // Marionette seams: from the corners of the mouth down to the jaw, and the neck joint.
+          line(ctx, [[4.4, 7.6], [4.2, 11.4]], '#3a2c28', .75); line(ctx, [[8.8, 7.2], [8.4, 10.4]], '#3a2c28', .7);
+          line(ctx, [[4.2, 9.8], [8.5, 9.4]], 'rgba(58,44,40,.55)', .4);
+          line(ctx, [[4.6, 7.6], [4.4, 11.2]], 'rgba(255,240,220,.45)', .18);
+          line(ctx, [[1, 4.8], [1.8, 5.4]], 'rgba(90,70,60,.4)', .3);
+          ctx.fillStyle = 'rgba(60,40,50,.18)'; ell(ctx, 6.6, 9.8, 2.2, 1.2); ctx.fill();
+        },
+        front(ctx, spec) {
+          locks(ctx, spec, HC, [[-1.2, -8.2, -2.6, 5.4, 1.6, -1], [2.4, -8.8, 2.2, -1.8, 1.4, 0], [6, -8.6, 6.8, -3, 1.3, .2], [9.6, -6.6, 11, 2.6, 1.2, .6]]);
+        }
+      },
+      front(ctx, pose, hand) {
+        // Puppet seam at the neck.
+        line(ctx, [[-.6, -15.2], [3.2, -15]], '#5a4a40', .4);
+      }
+    };
+  }
+  // Yondaime Kazekage Rasa (Edo Tensei): short red-brown hair, stern face, Edo cracks and black
+  // sclera; white Kazekage cloak with blue trim worn open over the beige Suna flak jacket.
+  function rasaSpec() {
+    const O = '#1c140f', HC = '#8a3a22', CLOAK = '#f2efe6', TRIM = '#3a6fa8', SHIRT = '#2c3446', VEST = '#b7a77e';
+    return {
+      outline: O, skin: '#eccdb2', skinShade: '#c09a82', bulk: .8,
+      legs: { thigh: SHIRT, shin: SHIRT, foot: '#22242c', w1: 5.6, wrap: '#d8d2c2' },
+      arms: { upper: CLOAK, lower: SHIRT, w1: 6, w2: 5, cuff: TRIM },
+      torso: { base: SHIRT, over(ctx, pose) {
+        flakVest(VEST, { plain: true, outline: O, ribs: true })(ctx, pose);
+        line(ctx, [[3.8, -12.6], [3.8, -1]], dark(VEST, .45), .45);
+        // The open cloak's front edges with their blue trim.
+        ctx.fillStyle = CLOAK; ctx.beginPath(); ctx.moveTo(-9, -13.6); ctx.lineTo(-5.4, -13.6); ctx.quadraticCurveTo(-6.8, -6, -6.4, 0); ctx.lineTo(-9, 0); ctx.fill();
+        ctx.fillStyle = TRIM; ctx.fillRect(-6.8, -13.4, 1, 13.4);
+        ctx.fillStyle = CLOAK; ctx.beginPath(); ctx.moveTo(7.8, -13); ctx.lineTo(9.6, -13); ctx.lineTo(9.6, 0); ctx.lineTo(8, 0); ctx.quadraticCurveTo(8.4, -7, 7.8, -13); ctx.fill();
+        ctx.fillStyle = TRIM; ctx.fillRect(7.6, -12.8, .9, 12.8);
+      } },
+      skirt: { color: CLOAK, hem: 6.4, flare: 1.8, paint: (ctx, hem, hipY) => {
+        ctx.fillStyle = SHIRT; ctx.beginPath(); ctx.moveTo(-1.6, hipY); ctx.lineTo(4.6, hipY); ctx.lineTo(5.4, hem); ctx.lineTo(-2.4, hem); ctx.fill();
+        ctx.fillStyle = TRIM; ctx.fillRect(-21, hem - 1.8, 42, 1.8);
+        ctx.fillStyle = light(TRIM, .35); ctx.fillRect(-21, hem - 1.8, 42, .45);
+        ctx.strokeStyle = 'rgba(90,90,120,.3)'; ctx.lineWidth = .4;
+        for (const x of [-7, 8]) { ctx.beginPath(); ctx.moveTo(x, hipY + 1); ctx.quadraticCurveTo(x - .6, (hipY + hem) / 2, x - 1, hem); ctx.stroke(); }
+      } },
+      collarBack(ctx) {
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.4, -12); ctx.lineTo(-7.6, -18.4); ctx.quadraticCurveTo(-2, -16.8, 3.6, -16.4); ctx.lineTo(6.8, -12); ctx.closePath(); }, CLOAK, O, 1, () => {
+          ctx.fillStyle = 'rgba(60,60,100,.3)'; ctx.fillRect(-9, -19, 7, 8);
+        });
+      },
+      shoulder(ctx) {
+        paint(ctx, () => smooth(ctx, [[-8.2, -12.6], [-3.6, -14.2], [.6, -12.6], [-.2, -8.6], [-6.8, -8.2], [-8.8, -10.2]]), CLOAK, O, .9, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-10, -10.2, 12, 3);
+          ctx.fillStyle = TRIM; ctx.fillRect(-10, -9.2, 12, .8);
+        });
+      },
+      head: {
+        hair: (ctx, spec) => sweptHair(ctx, spec, HC, [[-28, 14.4], [-54, 16.4], [-80, 17.2], [-106, 17], [-132, 16.2], [-158, 15.2], [-184, 14], [-208, 12.6]], { valley: 12.4, sweep: .18 }),
+        eyes: { type: 'normal', iris: '#3a2e26' }, browAngle: 'angry', browColor: dark(HC, .3), mouth: 'frown', attackMouth: 'shout', blush: false,
+        marks(ctx) {
+          edoCracks(ctx);
+          edoSclera(ctx, 2.4, 2.2, 2.1, 2.65, true); edoSclera(ctx, 7.95, 2.1, 1.48, 2.45, false);
+          line(ctx, [[8.8, 6], [8, 8]], 'rgba(120,70,60,.45)', .35);
+        },
+        band: { cloth: '#26303a', plate: '#cdd5de', symbol: 'sand' },
+        front(ctx, spec) { locks(ctx, spec, HC, [[-1, -8.4, -2, 3.4, 1.5, -.8], [2.8, -8.8, 3.2, -4.4, 1.3, 0], [6.4, -8.4, 7.2, -4, 1.2, .2], [9.6, -6.4, 10.6, -.4, 1.1, .4]]); }
       }
     };
   }
@@ -3388,12 +4307,375 @@
     };
   }
 
+  // Hanzō of the Salamander (duel-bosses.js): Amegakure's old leader. Long wild dark hair down the back,
+  // the respirator over nose and mouth (Ibuse's poison gland sits in his body), grey armour plates over
+  // a dark battle suit, forearm guards and the kusarigama slung on his back (in hand when he strikes).
+  function hanzoSpec() {
+    const O = '#121318', HAIRC = '#33333d', SUIT = '#272a33', ARM = '#8e959f', MASK = '#c8ccd2', MASK_D = '#7c828c';
+    const sickle = (ctx, x, y, rot, s = 1) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+      seg(ctx, [-7, 0], [5, 0], 2.3, O); seg(ctx, [-7, 0], [5, 0], 1.35, '#6a4a2e');
+      seg(ctx, [-7, -.3], [5, -.3], .35, 'rgba(255,220,170,.45)');
+      for (let i = -6.4; i < -2; i += 1.1) line(ctx, [[i, -.7], [i + .6, .7]], '#241810', .32);
+      paint(ctx, () => { ctx.beginPath(); ctx.moveTo(4, -1.2); ctx.quadraticCurveTo(10.6, -2, 12.6, 5.4); ctx.quadraticCurveTo(9.4, 1.6, 4.2, 1.1); ctx.closePath(); }, '#dfe4ea', O, .55, () => {
+        ctx.fillStyle = 'rgba(60,70,96,.45)'; ctx.beginPath(); ctx.moveTo(4, .2); ctx.quadraticCurveTo(9.6, .6, 12.6, 5.4); ctx.lineTo(13, 6); ctx.lineTo(4, 2); ctx.fill();
+      });
+      dot(ctx, -7.4, 0, .9, '#8a8f98'); dot(ctx, -7.4, 0, .45, O);
+      ctx.restore();
+    };
+    const chain = (ctx, pts) => {
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = O; ctx.lineWidth = .9; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke();
+      ctx.strokeStyle = '#a8aeb8'; ctx.lineWidth = .45; ctx.setLineDash([.7, .5]); ctx.stroke(); ctx.setLineDash([]);
+    };
+    return {
+      outline: O, skin: '#e4c4a6', skinShade: '#bc9682', legK: 1.12, bulk: .35,
+      legs: { thigh: SUIT, shin: SUIT, foot: '#1c1e26', w1: 5.6, w2: 4.6, wrap: '#5a606a' },
+      arms: { upper: SUIT, lower: SUIT, guard: ARM, w1: 5, w2: 4.6, hand: '#2a2d36' },
+      head: {
+        drape: maneDrape(HAIRC),
+        hair: (ctx, sp) => sweptHair(ctx, sp, HAIRC, MADARA_TIPS, { valley: 13.2, sweep: .26 }),
+        eyes: { type: 'normal', iris: '#5a5c66' }, browAngle: 'angry', browColor: '#22222a', blush: false,
+        mask(ctx, spec) {
+          // The respirator: a fitted grey face piece from under the eyes to the jaw...
+          const top = () => { ctx.moveTo(-5, 4.2); ctx.quadraticCurveTo(2, 4.8, 6.6, 4.4); ctx.quadraticCurveTo(9.6, 4, 12, 4.4); };
+          ctx.save(); headPath(ctx); ctx.clip();
+          ctx.beginPath(); top(); ctx.lineTo(13, 14); ctx.lineTo(-6, 14); ctx.closePath();
+          ctx.fillStyle = MASK; ctx.fill();
+          ctx.save(); ctx.clip();
+          ctx.fillStyle = SHADE; ctx.beginPath(); ctx.moveTo(-6, 4); ctx.quadraticCurveTo(0, 7, -.6, 14); ctx.lineTo(-6, 14); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-4, 4.7, 15, .6);
+          ctx.strokeStyle = MASK_D; ctx.lineWidth = .35;
+          for (const y of [7.4, 9.6]) { ctx.beginPath(); ctx.moveTo(-4, y); ctx.quadraticCurveTo(3, y + .8, 9, y - .2); ctx.stroke(); }
+          ctx.restore();
+          ctx.beginPath(); top(); ctx.strokeStyle = O; ctx.lineWidth = .8; ctx.stroke();
+          ctx.restore();
+          // ...the strap running back to the ear...
+          paint(ctx, () => poly(ctx, [[-3.2, 4.2], [1.6, 4.6], [1.6, 5.6], [-3, 5.3]]), dark(MASK, .3), O, .4);
+          // ...and the snout: a ribbed canister jutting out over the mouth, a round filter at its tip.
+          paint(ctx, () => { ctx.beginPath(); ctx.moveTo(4.6, 5); ctx.lineTo(11, 5); ctx.quadraticCurveTo(14.4, 7.2, 12.4, 10.8); ctx.lineTo(5.6, 11.4); ctx.quadraticCurveTo(3.8, 8, 4.6, 5); ctx.closePath(); }, MASK, O, .8, () => {
+            ctx.fillStyle = SHADE; ctx.fillRect(3, 8.6, 12, 4);
+            ctx.fillStyle = 'rgba(255,255,255,.5)'; ell(ctx, 8, 5.8, 3, .55); ctx.fill();
+            ctx.strokeStyle = MASK_D; ctx.lineWidth = .4;
+            for (const x of [6.6, 8.2, 9.8]) { ctx.beginPath(); ctx.moveTo(x, 5.2); ctx.quadraticCurveTo(x + .6, 8, x, 11); ctx.stroke(); }
+          });
+          paint(ctx, () => ell(ctx, 12.6, 8, 1.5, 2.3), '#5c626c', O, .6, () => {
+            ctx.strokeStyle = '#2a2e36'; ctx.lineWidth = .3;
+            for (const y of [6.8, 7.7, 8.6, 9.4]) { ctx.beginPath(); ctx.moveTo(11.4, y); ctx.lineTo(13.8, y); ctx.stroke(); }
+            dot(ctx, 12.2, 6.8, .4, 'rgba(255,255,255,.55)');
+          });
+          // Breathing hose curling from the cheek down to the collar.
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = O; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(1.4, 9.6); ctx.quadraticCurveTo(-1.4, 12.6, -2.6, 15.6); ctx.stroke();
+          ctx.strokeStyle = '#6a707a'; ctx.lineWidth = 1.2; ctx.stroke();
+          ctx.strokeStyle = '#2a2e36'; ctx.lineWidth = .3;
+          for (const t of [.25, .5, .75]) { const x = 1.4 + (-2.6 - 1.4) * t, y = 9.6 + 6 * t; ctx.beginPath(); ctx.moveTo(x - .7, y); ctx.lineTo(x + .7, y + .3); ctx.stroke(); }
+        },
+        front(ctx, spec) {
+          // Ragged dark bangs falling over the forehead and a long lock down the far cheek.
+          locks(ctx, spec, HAIRC, [[9.6, -7.4, 11.4, 4.2, 1.5, 1.1], [1.2, -8.8, -.2, -.4, 1.6, -.8], [4.8, -9, 5.4, -3.4, 1.3, .3], [7.4, -8.6, 8.2, -4, 1.2, .3]], .9);
+          // Old scar over the near brow.
+          line(ctx, [[1.2, -2.6], [3.6, 1]], '#9a6a5e', .45);
+        }
+      },
+      torso: {
+        base: SUIT, paint: ctx => {
+          // Grey lamellar chest armour over the dark suit, laced in rows.
+          ctx.fillStyle = ARM; ctx.beginPath(); ctx.moveTo(-8, -12.8); ctx.lineTo(9, -12.4); ctx.lineTo(9, -4.4); ctx.lineTo(-8, -4.6); ctx.closePath(); ctx.fill();
+          for (let y = -12.2; y < -4.6; y += 2.5) {
+            ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(-8, y, 17, .55);
+            ctx.strokeStyle = '#4a505a'; ctx.lineWidth = .5; ctx.beginPath(); ctx.moveTo(-8, y + 2.3); ctx.lineTo(9, y + 2.1); ctx.stroke();
+            ctx.fillStyle = '#3a3e48'; for (let x = -5; x < 8; x += 3) ctx.fillRect(x, y + 1.1, .45, .45);
+          }
+          line(ctx, [[3, -12.6], [3.2, -4.6]], '#4a505a', .5);
+          // Dark sash and a plain buckle.
+          ctx.fillStyle = '#1c1e26'; ctx.fillRect(-9, -4, 19, 2.6);
+          ctx.fillStyle = 'rgba(150,160,200,.3)'; ctx.fillRect(-9, -4, 19, .45);
+          ctx.fillStyle = '#8a8f98'; ctx.fillRect(2.4, -3.8, 2.4, 2.2);
+        }
+      },
+      skirt: {
+        color: '#3a3e48', hem: 6.4, flare: .9, opening: false, paint: (ctx, hem, hipY) => {
+          ctx.strokeStyle = '#1c1e26'; ctx.lineWidth = .55;
+          for (let y = hipY + 2.2; y < hem; y += 2.2) { ctx.beginPath(); ctx.moveTo(-16, y); ctx.lineTo(16, y); ctx.stroke(); }
+          ctx.fillStyle = 'rgba(255,255,255,.16)'; for (let y = hipY + 2.5; y < hem; y += 2.2) ctx.fillRect(-16, y, 32, .45);
+        }
+      },
+      collarBack(ctx, pose) {
+        // Kusarigama slung across the back, its chain coiled at the hip.
+        if (pose.attack) return;
+        sickle(ctx, -4.6, -9, pose.run ? -2.2 : -2.0, .95);
+        chain(ctx, [[-9, -4], [-10.6, -1], [-8.4, 1.4], [-6, 0], [-7.4, -2.6], [-9.6, -1.4]]);
+      },
+      collar(ctx) {
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.4, -11.2); ctx.lineTo(-7, -15.4); ctx.quadraticCurveTo(-1.8, -14.4, 3.6, -14); ctx.quadraticCurveTo(6.6, -13.8, 8, -14.6); ctx.lineTo(7.8, -11.4); ctx.closePath(); }, SUIT, O, .95, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-9, -16, 5, 6);
+          ctx.fillStyle = 'rgba(150,160,210,.26)'; ctx.fillRect(1.6, -14.2, 6, .55);
+        });
+      },
+      shoulder(ctx) {
+        // Two grey pauldron lames over the near shoulder.
+        for (let i = 1; i >= 0; i--) {
+          const dy = i * 2.2;
+          paint(ctx, () => smooth(ctx, [[-8.6, -13 + dy], [-2.6, -15 + dy], [2.6, -12.4 + dy], [1.8, -9.2 + dy], [-5.6, -8.8 + dy], [-9.2, -10.4 + dy]]), i ? '#737a84' : ARM, O, .9, () => {
+            ctx.fillStyle = SHADE; ctx.fillRect(-11, -10.6 + dy, 15, 3);
+            ctx.fillStyle = 'rgba(255,255,255,.4)'; ell(ctx, -2.6, -13.6 + dy, 3.4, .65, .1); ctx.fill();
+          });
+        }
+      },
+      front(ctx, pose, hand, handF) {
+        if (!pose.attack) return;
+        // Sickle swung in the near hand, the chain running back to the far one.
+        sickle(ctx, hand[0] + 1, hand[1], -.5, 1.05);
+        chain(ctx, [[hand[0] - 6, hand[1] + 3], [(hand[0] + handF[0]) / 2 - 2, Math.max(hand[1], handF[1]) + 5], [handF[0], handF[1]]]);
+      }
+    };
+  }
+
+  // Rock Lee, rival version (duel-bosses.js): the glossy bowl cut, huge eyebrows and round eyes, the
+  // green jumpsuit with the red forehead-protector belt, orange leg warmers and bandaged fists.
+  function leeSpec() {
+    const O = '#11201a', SUIT = '#3f9c3c', BAND = '#eee6d4', BAND_D = '#b8ac92';
+    return {
+      outline: O, skin: '#f2d0ae', skinShade: '#d0a284', legK: 1.12,
+      legs: { thigh: SUIT, shin: SUIT, warmer: '#f2892c', foot: '#2a3048', w1: 5.2, w2: 4.6 },
+      arms: {
+        upper: SUIT, lower: SUIT, w1: 4.5, w2: 4.1, hand: BAND,
+        pattern(ctx, p0, p1, p2, far) {
+          // Bandages wound from the wrist halfway up the forearm.
+          const a0 = lerp(p1, p2, .42), a1 = p2, k = far ? .2 : 0;
+          ctx.lineCap = 'butt';
+          seg(ctx, a0, a1, 5.4, O); seg(ctx, a0, a1, 4.3, dark(BAND, k + .08));
+          const [s0, s1] = lit(a0, a1, .7); seg(ctx, s0, s1, 1.6, dark(BAND, k));
+          ctx.lineCap = 'round';
+          const [nx, ny] = litN(a0, a1);
+          for (const t of [.55, .68, .8, .92]) {
+            const m = lerp(p1, p2, t);
+            line(ctx, [[m[0] - nx * 2.2 - .4, m[1] - ny * 2.2 - .5], [m[0] + nx * 2.2 + .4, m[1] + ny * 2.2 + .5]], dark(BAND_D, k + .1), .34);
+          }
+        }
+      },
+      torso: {
+        base: SUIT, paint: ctx => {
+          // Forehead protector worn as a belt on red cloth, the suit's centre seam and collar shadow.
+          ctx.fillStyle = '#c0282c'; ctx.fillRect(-8, -2.9, 17, 2.5);
+          ctx.fillStyle = 'rgba(255,190,180,.35)'; ctx.fillRect(-8, -2.9, 17, .45);
+          ctx.fillStyle = '#cdd5de'; ctx.fillRect(2.2, -3.2, 4, 3.1);
+          ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(2.2, -3.2, 4, .5);
+          plateSymbol(ctx, 'leaf', 4.2, -1.6, .55, '#5a6470');
+          ctx.strokeStyle = 'rgba(20,60,30,.55)'; ctx.lineWidth = .5; ctx.beginPath(); ctx.moveTo(3.4, -13); ctx.lineTo(3.4, -3.2); ctx.stroke();
+          ctx.strokeStyle = 'rgba(20,60,30,.35)'; ctx.lineWidth = .4;
+          ctx.beginPath(); ctx.moveTo(-4, -12); ctx.quadraticCurveTo(-3, -8, -4.4, -3.4); ctx.stroke();
+        }
+      },
+      collar(ctx) { paint(ctx, () => { ctx.beginPath(); ctx.ellipse(1.6, -13.2, 4.2, 1.6, 0, 0, TAU); }, SUIT, O, .8, () => { ctx.fillStyle = SHADE; ctx.fillRect(-3, -13, 9, 2); }); },
+      head: {
+        hair(ctx, spec) {
+          // The bowl cut, a shade rounder than Guy's: smooth dome, dead-straight fringe, sides cut at the jaw.
+          const c = '#141418';
+          paint(ctx, () => {
+            ctx.beginPath();
+            ctx.moveTo(11.2, 1.2);
+            ctx.quadraticCurveTo(12.6, -14.2, .4, -14.6);
+            ctx.quadraticCurveTo(-13.6, -14, -12.4, .6);
+            ctx.lineTo(-12, 7.4); ctx.lineTo(-2.8, 7.4); ctx.lineTo(-2.2, -2.8);
+            ctx.quadraticCurveTo(4.2, -4, 10.8, -3.2);
+            ctx.closePath();
+          }, c, spec.outline, 1.15, () => {
+            ctx.fillStyle = '#08080c'; ctx.fillRect(-14, -1, 12, 10);
+            ctx.strokeStyle = '#2c3044'; ctx.lineWidth = .4;
+            for (let i = 0; i < 6; i++) { const x = -1 + i * 2.1; ctx.beginPath(); ctx.moveTo(x - .6, -11.6); ctx.quadraticCurveTo(x + .2, -7.4, x + .1, -3.4); ctx.stroke(); }
+            for (let i = 0; i < 3; i++) { const x = -10 + i * 2.6; ctx.beginPath(); ctx.moveTo(x + 1, -9.4); ctx.quadraticCurveTo(x - .2, -2, x, 7); ctx.stroke(); }
+            ctx.strokeStyle = '#8090c8'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.ellipse(.4, -5.6, 10, 6.6, -.08, Math.PI * 1.08, Math.PI * 1.86); ctx.stroke();
+            ctx.strokeStyle = '#eef2ff'; ctx.lineWidth = .9;
+            ctx.beginPath(); ctx.ellipse(.4, -5.6, 10, 6.6, -.08, Math.PI * 1.3, Math.PI * 1.62); ctx.stroke();
+          });
+        },
+        eyes: { type: 'normal', iris: '#121216' }, brows: 'thick', browW: 3, browColor: '#0e0e12', browAngle: 'angry',
+        mouth: 'grin', attackMouth: 'shout', blush: false
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------- Edo Mizukage (edo-mizukage-bosses.js)
+  // Lazy half-closed lid over an already painted eye (laid-back look).
+  function lazyLid(ctx, x, y, w, h, near, skin, O) {
+    const o = near ? -1 : 1;
+    ctx.save(); eyeShape(ctx, x, y, w, h, o); ctx.clip();
+    ctx.fillStyle = skin; ctx.fillRect(x - w * 3, y - h * 3, w * 6, h * 2.62);
+    ctx.fillStyle = 'rgba(120,70,80,.35)'; ctx.fillRect(x - w * 3, y - h * .42, w * 6, h * .16);
+    ctx.restore();
+    line(ctx, [[x - w * o * 1.05, y - h * .26], [x + w * o * .2, y - h * .5], [x + w * o * 1.02, y - h * .3]], O, .62);
+  }
+  // Hōzuki Gengetsu, Second Mizukage (Edo Tensei): shaggy pale-blue hair, the Hōzuki shark teeth in a
+  // lazy grin under half-closed eyes, Edo cracks and black sclera; a long pale Mizukage coat with navy
+  // trim worn open over a dark high-collared shirt, blue sash. Points a finger "water gun" when he attacks.
+  function gengetsuSpec() {
+    const O = '#141a26', COAT = '#e2e9f0', TRIM = '#2e4c82', INNER = '#273149', SASH = '#3d6eb0', HC = '#cfe4f1';
+    const skin = '#e9d6c6';
+    return {
+      outline: O, skin, skinShade: '#b9a1a2', bulk: .5,
+      legs: { thigh: INNER, shin: INNER, foot: '#232a3a', w1: 5.5, w2: 4.5 },
+      arms: { upper: COAT, lower: COAT, w1: 5.6, w2: 5.4, cuff: TRIM },
+      torso: { base: COAT, paint: ctx => {
+        // The dark shirt in the V of the open coat, navy trim down both lapels.
+        ctx.fillStyle = INNER; ctx.beginPath(); ctx.moveTo(-1.4, -13.4); ctx.lineTo(5.6, -13.4); ctx.lineTo(3.3, -3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = TRIM;
+        ctx.beginPath(); ctx.moveTo(-2.3, -13.4); ctx.lineTo(-.6, -13.4); ctx.lineTo(3.3, -3.4); ctx.lineTo(3.5, .4); ctx.lineTo(1.9, .4); ctx.lineTo(1.9, -3.2); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(5.4, -13.4); ctx.lineTo(7, -13.2); ctx.lineTo(4.6, -3.2); ctx.lineTo(3.5, -3.4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(2.05, -6, .45, 6);
+        ctx.fillStyle = 'rgba(150,170,220,.25)'; ctx.fillRect(.6, -12.6, 3, .5);
+        // Blue sash knotted at the hip.
+        ctx.fillStyle = SASH; ctx.fillRect(-8, -3.4, 17, 2.6);
+        ctx.fillStyle = light(SASH, .3); ctx.fillRect(-8, -3.2, 17, .5);
+        ctx.fillStyle = dark(SASH, .3); ctx.fillRect(-5.6, -3.9, 2.4, 3.8);
+        ctx.strokeStyle = 'rgba(90,100,130,.38)'; ctx.lineWidth = .4;
+        for (const [x0, x1] of [[-4, -4.8], [-.8, -.4], [6.8, 7.4]]) { ctx.beginPath(); ctx.moveTo(x0, -12); ctx.quadraticCurveTo(x0 + .6, -7, x1, -3.6); ctx.stroke(); }
+      } },
+      skirt: { color: COAT, hem: 5.2, flare: 1.6, paint: (ctx, hem) => {
+        ctx.fillStyle = TRIM; ctx.fillRect(-20, hem - 1.8, 40, 1.8);
+        ctx.fillStyle = light(TRIM, .35); ctx.fillRect(-20, hem - 1.8, 40, .45);
+        ctx.strokeStyle = 'rgba(90,100,130,.35)'; ctx.lineWidth = .4;
+        for (const x of [-6, -1.6, 4.4]) { ctx.beginPath(); ctx.moveTo(x, hem - 10); ctx.quadraticCurveTo(x - .6, hem - 5, x - 1, hem - 1.8); ctx.stroke(); }
+      } },
+      collar(ctx) {
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-6.2, -11.2); ctx.lineTo(-6.8, -16.4); ctx.quadraticCurveTo(-1.2, -15, 4.2, -14.6); ctx.lineTo(8, -15.6); ctx.lineTo(7.4, -11.4); ctx.closePath(); }, INNER, O, .95, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-8, -17, 5, 7);
+          ctx.fillStyle = 'rgba(150,170,220,.3)'; ctx.fillRect(1, -14.8, 6.4, .55);
+        });
+        // The coat's collar folded open round it.
+        paint(ctx, () => poly(ctx, [[-7.2, -11.4], [-7.4, -14.4], [-2.4, -13.4], [.6, -11.6], [2.8, -8.2], [.4, -9.6], [-3.4, -10.6]]), COAT, O, .8, () => {
+          ctx.fillStyle = 'rgba(40,40,80,.22)'; ctx.fillRect(-8, -15, 4, 6);
+          ctx.fillStyle = TRIM; ctx.beginPath(); ctx.moveTo(-2.4, -13.4); ctx.lineTo(.6, -11.6); ctx.lineTo(2.8, -8.2); ctx.lineTo(1.9, -8.4); ctx.lineTo(-.2, -11.2); ctx.lineTo(-2.9, -12.7); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-6, -14, 3, .5);
+        });
+      },
+      head: {
+        hair: (ctx, sp) => sweptHair(ctx, sp, HC, [[-22, 15.4], [-46, 18], [-72, 19.2], [-98, 19.2], [-124, 18.6], [-150, 17.8], [-176, 16.8], [-200, 15.6], [-224, 14.2]], { valley: 12.6, sweep: .16 }),
+        eyes: { type: 'normal', iris: '#8d7bc4' }, browColor: '#7d98aa', browW: .8, mouth: 'shark', attackMouth: 'shark', blush: false,
+        marks(ctx, spec) {
+          edoCracks(ctx);
+          edoSclera(ctx, 2.4, 2.2, 2.1, 2.65, true); edoSclera(ctx, 7.95, 2.1, 1.48, 2.45, false);
+          lazyLid(ctx, 2.4, 2.2, 2.1, 2.65, true, spec.skin, spec.outline); lazyLid(ctx, 7.95, 2.1, 1.48, 2.45, false, spec.skin, spec.outline);
+          // Grin lines at the corners of the mouth.
+          line(ctx, [[1.6, 5.6], [2.1, 6.6]], 'rgba(110,60,60,.55)', .35); line(ctx, [[10.1, 4.9], [10.3, 5.8]], 'rgba(110,60,60,.5)', .3);
+        },
+        front(ctx, spec) {
+          // Shaggy fringe falling over the forehead.
+          locks(ctx, spec, HC, [[-1.4, -8.2, -3, 3.8, 1.5, -1], [1.8, -8.8, 1.4, -2.4, 1.4, -.3], [4.8, -8.6, 5.4, -3.2, 1.3, .3], [8, -8, 9.8, -2.6, 1.2, .7]]);
+        }
+      },
+      front(ctx, pose, handN) {
+        if (!pose.attack) return;
+        // Water Gun: index finger pointed out of the fist, a bead of water at its tip.
+        const [hx, hy] = handN;
+        line(ctx, [[hx + 1.2, hy - .9], [hx + 5, hy - 1.6]], O, 1.7);
+        line(ctx, [[hx + 1.2, hy - .9], [hx + 4.9, hy - 1.6]], skin, .95);
+        line(ctx, [[hx + .6, hy - 1.9], [hx + 2.8, hy - 3.2]], O, 1.5); line(ctx, [[hx + .6, hy - 1.9], [hx + 2.7, hy - 3.2]], skin, .8);
+        paint(ctx, () => ell(ctx, hx + 6.6, hy - 1.9, 1.5, 1.2), '#7fd0ff', '#163a60', .5, () => { dot(ctx, hx + 6.2, hy - 2.3, .45, 'rgba(255,255,255,.9)'); });
+      }
+    };
+  }
+  // Karatachi Yagura, Fourth Mizukage (Edo Tensei): a boyish build, spiky grey hair, pale pink eyes over
+  // black Edo sclera, the stitched scar down from under his left eye; a dark high-necked shirt under a
+  // short sage-green robe with a navy obi, bandaged shins, and the long green hook staff with its flower.
+  function yaguraSpec() {
+    const O = '#141a1a', ROBE = '#b6cfb2', SHIRT = '#2a3242', SASH = '#2c3e64', HC = '#c2c9c6', STAFF = '#4c9a5c';
+    const skin = '#eed8c6';
+    return {
+      outline: O, skin, skinShade: '#bfa3a2', headScale: 1.12, legK: .94,
+      legs: { thigh: SHIRT, shin: SHIRT, foot: '#22262e', w1: 4.9, w2: 4.1, wrap: '#e4ddcc' },
+      arms: { upper: ROBE, lower: SHIRT, w1: 4.8, w2: 3.9, cuff: dark(SHIRT, .3) },
+      torso: { base: ROBE, paint: ctx => {
+        // The dark shirt's high neck in the robe's crossover, then the wrap line and the navy obi.
+        ctx.fillStyle = SHIRT; ctx.beginPath(); ctx.moveTo(-.4, -13.4); ctx.lineTo(5.6, -13.4); ctx.lineTo(4, -9.4); ctx.closePath(); ctx.fill();
+        line(ctx, [[-.6, -13.4], [4.2, -8.6], [6.6, -4.4]], dark(ROBE, .45), .6);
+        line(ctx, [[-.2, -13.2], [4.4, -8.9]], 'rgba(255,255,255,.55)', .3);
+        ctx.fillStyle = 'rgba(40,60,50,.2)'; ctx.fillRect(-9, -14, 4, 16);
+        ctx.fillStyle = SASH; ctx.fillRect(-8, -4.6, 17, 3.4);
+        ctx.fillStyle = light(SASH, .3); ctx.fillRect(-8, -4.4, 17, .5);
+        ctx.fillStyle = dark(SASH, .35); ctx.fillRect(-8, -1.6, 17, .5);
+        ctx.fillStyle = '#d8e8d4'; ctx.fillRect(-8, -3.2, 17, .5);
+        ctx.strokeStyle = 'rgba(60,80,70,.38)'; ctx.lineWidth = .4;
+        for (const [x0, x1] of [[-3.6, -4.4], [.8, 1.6]]) { ctx.beginPath(); ctx.moveTo(x0, -12); ctx.quadraticCurveTo(x0 + .6, -8, x1, -5); ctx.stroke(); }
+      } },
+      skirt: { color: ROBE, hem: 9.4, flare: 1.2, paint: (ctx, hem) => {
+        ctx.fillStyle = dark(ROBE, .3); ctx.fillRect(-20, hem - 1.2, 40, 1.2);
+        ctx.strokeStyle = 'rgba(60,80,70,.4)'; ctx.lineWidth = .4;
+        ctx.beginPath(); ctx.moveTo(5.4, hem - 9); ctx.lineTo(6.6, hem); ctx.stroke();
+      } },
+      collar(ctx) {
+        paint(ctx, () => { ctx.beginPath(); ctx.moveTo(-5.8, -11.4); ctx.lineTo(-6.2, -16.6); ctx.quadraticCurveTo(-1, -15.4, 3.6, -15); ctx.lineTo(7.4, -15.8); ctx.lineTo(7, -11.6); ctx.closePath(); }, SHIRT, O, .95, () => {
+          ctx.fillStyle = SHADE; ctx.fillRect(-8, -17, 5, 7);
+          ctx.fillStyle = 'rgba(160,180,220,.3)'; ctx.fillRect(.6, -15.2, 6.4, .5);
+          ctx.strokeStyle = 'rgba(160,180,220,.25)'; ctx.lineWidth = .3; ctx.beginPath(); ctx.moveTo(-5.8, -13.4); ctx.quadraticCurveTo(1, -12.4, 7.2, -13.6); ctx.stroke();
+        });
+      },
+      head: {
+        hair: (ctx, sp) => sweptHair(ctx, sp, HC, [[-26, 15.8], [-52, 18.4], [-80, 19.4], [-108, 19], [-136, 17.8], [-162, 16.4], [-188, 14.8], [-212, 13.2]], { valley: 12.6, sweep: .2 }),
+        eyes: { type: 'normal', iris: '#e483b8' }, browColor: '#8e9692', browW: .8, browAngle: 'angry', mouth: 'neutral', attackMouth: 'shout', blush: false,
+        marks(ctx) {
+          edoCracks(ctx);
+          edoSclera(ctx, 2.4, 2.2, 2.1, 2.65, true); edoSclera(ctx, 7.95, 2.1, 1.48, 2.45, false);
+          // The stitched scar running down from under his left (far) eye.
+          line(ctx, [[8.3, 4.9], [8.1, 7.6], [7.6, 10.4]], '#a4645e', .55);
+          line(ctx, [[8.5, 4.9], [8.3, 7.6], [7.8, 10.2]], 'rgba(255,230,215,.55)', .2);
+          for (const [x, y] of [[8.25, 5.8], [8.1, 7.4], [7.85, 9]]) line(ctx, [[x - .9, y - .2], [x + .9, y + .2]], '#8a4c48', .32);
+        },
+        front(ctx, spec) {
+          locks(ctx, spec, HC, [[-1.6, -8.2, -2.8, 2.8, 1.5, -.8], [1.4, -8.8, .8, -2.6, 1.4, -.4], [4.4, -8.8, 4.8, -3.6, 1.3, .2], [7.6, -8.2, 9.2, -3.4, 1.2, .6]]);
+        }
+      },
+      // At rest / running the staff stands behind him (only the hook shows over his shoulder);
+      // swung forward on attack and held out while he forms seals.
+      back(ctx, pose) {
+        if (pose.attack || pose.seal) return;
+        yaguraStaff(ctx, pose, SH_N[0] + pose.armN[2], SH_N[1] + pose.armN[3], 47);
+      },
+      front(ctx, pose, handN) {
+        if (pose.attack || pose.seal) yaguraStaff(ctx, pose, handN[0], handN[1]);
+        const [hx, hy] = handN;
+        // The fist closed over the shaft.
+        paint(ctx, () => ell(ctx, hx + .2, hy + .1, 1.6, 1.4), skin, O, .7, () => { ctx.fillStyle = SHADE; ctx.fillRect(hx - 2, hy + .4, 4, 2); });
+      }
+    };
+  }
+  function yaguraStaff(ctx, pose, hx, hy, len = 33) {
+    const O = '#141a1a', STAFF = '#4c9a5c';
+    {
+        const lean = pose.lean, hipY = -Math.max(pose.legN[3], pose.legF[3]) * .94 - (pose.lift || 0);
+        const t = pose.attack ? 1.15 : pose.raise ? .35 : pose.seal ? .66 : pose.run ? .62 : -.26;
+        const dx = Math.sin(t), dy = -Math.cos(t);
+        const ground = -(hipY + hx * Math.sin(lean)) / Math.cos(lean) - 1.2;
+        const B = pose.attack || pose.run ? 9 : Math.max(6, (ground - hy) / Math.cos(t)), T = len;
+        const a = [hx - dx * B, hy - dy * B], b = [hx + dx * T, hy + dy * T];
+        ctx.lineCap = 'round';
+        seg(ctx, a, b, 2.5, O); seg(ctx, a, b, 1.5, STAFF);
+        seg(ctx, [a[0] + .35, a[1]], [b[0] + .35, b[1]], .45, 'rgba(220,255,220,.5)');
+        // Hook: a crook curling forward over the top, chakra-green with a dark lip.
+        ctx.save(); ctx.translate(b[0], b[1]); ctx.rotate(t);
+        const crook = () => { ctx.beginPath(); ctx.moveTo(0, .4); ctx.lineTo(0, -2.2); ctx.arc(4.4, -2.2, 4.4, Math.PI, 0); ctx.lineTo(8.8, 1.2); ctx.quadraticCurveTo(9, 3.2, 10.8, 3.4); };
+        crook(); ctx.strokeStyle = O; ctx.lineWidth = 2.7; ctx.stroke();
+        crook(); ctx.strokeStyle = STAFF; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.beginPath(); ctx.arc(4.4, -2.2, 4.4, Math.PI * 1.1, Math.PI * 1.55); ctx.strokeStyle = 'rgba(220,255,220,.6)'; ctx.lineWidth = .5; ctx.stroke();
+        // The flower bound where the hook leaves the shaft.
+        for (let i = 0; i < 5; i++) {
+          const an = i * TAU / 5 - .3;
+          paint(ctx, () => ell(ctx, -.4 + Math.cos(an) * 1.6, .6 + Math.sin(an) * 1.6, 1.4, .8, an), i % 2 ? '#8fdc8a' : '#a9e8a0', O, .45);
+        }
+        paint(ctx, () => ell(ctx, -.4, .6, .9, .9), '#f0a8c8', O, .45, () => dot(ctx, -.7, .3, .3, 'rgba(255,255,255,.8)'));
+        ctx.restore();
+    }
+  }
+
   const SPECS = {
     naruto: narutoSpec(false),
     naruto_baryon: narutoSpec(true),
     naruto_rinnegan: narutoSpec(false, true),
     naruto_baryon_rinnegan: narutoSpec(true, true),
     naruto_rikudo: narutoRikudoSpec(),
+    naruto_kurama: narutoKuramaSpec(),
     walker: gruntSpec('walker'), runner: gruntSpec('runner'), brute: gruntSpec('brute'), spitter: gruntSpec('spitter'),
     suna_ninja: gruntSpec('suna_ninja'), kiri_ninja: gruntSpec('kiri_ninja'), kumo_ninja: gruntSpec('kumo_ninja'), iwa_ninja: gruntSpec('iwa_ninja'),
     ame_ninja: gruntSpec('ame_ninja'), oto_ninja: gruntSpec('oto_ninja'), taki_ninja: gruntSpec('taki_ninja'), kusa_ninja: gruntSpec('kusa_ninja'), yu_ninja: gruntSpec('yu_ninja'),
@@ -4132,8 +5414,10 @@
     nagato: nagatoSpec(),
     tsunade: tsunadeSpec(),
     danzo: danzoSpec(),
+    gengetsu: gengetsuSpec(), yagura: yaguraSpec(),
     jubi: jubiSpec(),
     killer_bee: killerBeeSpec(),
+    darui: daruiSpec(), chojuro: chojuroSpec(), kurotsuchi: kurotsuchiSpec(),
     zetsu_white: zetsuSpec(),
     zetsu: zetsuSpec2(),
     konoha_ninja: gruntSpec('konoha_ninja'),
@@ -4142,11 +5426,20 @@
     // Summoned ally (B): Sasuke, Indra's reincarnation.
     sasuke_indra: sasukeIndraSpec(),
     sasuke: sasukeSpec(),
+    // Uchiha clan (uchiha-bosses.js)
+    shisui: shisuiSpec(), fugaku: fugakuSpec(), indra: indraSpec(),
     // Sannin (sannin-bosses.js)
     jiraiya: jiraiyaSpec(), orochimaru: orochimaruSpec(), kabuto: kabutoSpec(),
     // Legends (legend-bosses.js)
     kazekage1: kazekage1Spec(), mu: muSpec(), obito_rikudo: obitoRikudoSpec(),
+    // Pain's Six Paths minus Tendō (pain-paths-bosses.js)
+    pain_asura: painPathSpec('asura'), pain_human: painPathSpec('human'), pain_animal: painPathSpec('animal'),
+    pain_preta: painPathSpec('preta'), pain_naraka: painPathSpec('naraka'),
+    // Edo Kage (edo-kage-bosses.js)
+    raikage3: raikage3Spec(), kazekage3: kazekage3Spec(), rasa: rasaSpec(),
     tobi: tobiSpec(),
+    // Duel rivals (duel-bosses.js); Guy reuses the ally sprite `guy`.
+    hanzo: hanzoSpec(), lee: leeSpec(),
     kakashi: kakashiSpec()
   };
   SPECS.clone = SPECS.naruto;
@@ -4154,7 +5447,7 @@
   // Per-character sprite box (units) and world scale.
   const META = {
     naruto: { scale: 1.12 }, naruto_baryon: { scale: 1.16 }, clone: { scale: 1.12 },
-    naruto_rinnegan: { scale: 1.12 }, naruto_baryon_rinnegan: { scale: 1.16 }, naruto_rikudo: { scale: 1.14 },
+    naruto_rinnegan: { scale: 1.12 }, naruto_baryon_rinnegan: { scale: 1.16 }, naruto_rikudo: { scale: 1.14 }, naruto_kurama: { scale: 1.14 },
     walker: { scale: 1.02 }, runner: { scale: 1 }, brute: { scale: 1.32 }, spitter: { scale: 1.02 },
     suna_ninja: { scale: 1.02 }, kiri_ninja: { scale: 1.02 }, kumo_ninja: { scale: 1.02 }, iwa_ninja: { scale: 1.02 },
     ame_ninja: { scale: 1.02 }, oto_ninja: { scale: 1.02 }, taki_ninja: { scale: 1.02 }, kusa_ninja: { scale: 1.02 }, yu_ninja: { scale: 1.06 },
@@ -4165,6 +5458,7 @@
     hashirama: { scale: 1.14, box: [-36, -80, 36, 8] }, tobirama: { scale: 1.14 }, hiruzen: { scale: 1.12, box: [-38, -86, 38, 8] }, minato: { scale: 1.14 },
     guy: { scale: 1.18 },
     danzo: { scale: 1.42, box: [-40, -88, 40, 8] },
+    gengetsu: { scale: 1.36, box: [-40, -88, 42, 8] }, yagura: { scale: 1.16, box: [-42, -96, 52, 8] },
     madara: { scale: 1.55, box: [-42, -88, 46, 8] }, madara_rikudo: { scale: 1.6, box: [-42, -88, 46, 8] },
     nagato: { scale: 1.52, box: [-40, -88, 40, 8] },
     // The Ten-Tails' body is painted by ten-tails-boss.js; the near-zero scale keeps the fallen
@@ -4173,13 +5467,19 @@
     tsunade: { scale: 1.18, box: [-38, -82, 36, 8] }, zetsu_white: { scale: 1 },
     zetsu: { scale: 1.46, box: [-42, -98, 46, 8] },
     killer_bee: { scale: 1.42, box: [-44, -86, 42, 8] },
+    darui: { scale: 1.44, box: [-44, -88, 50, 8] }, chojuro: { scale: 1.34, box: [-44, -88, 50, 8] }, kurotsuchi: { scale: 1.26, box: [-40, -84, 40, 8] },
     konoha_ninja: { scale: 1.05 }, shinobi_ally: { scale: 1.05 }, shinobi_ally_suna: { scale: 1.05 }, shinobi_ally_kumo: { scale: 1.05 },
     shinobi_ally_kiri: { scale: 1.05 }, shinobi_ally_iwa: { scale: 1.05 },
     sasuke_indra: { scale: 1.24, box: [-40, -88, 46, 8] },
     sasuke: { scale: 1.26, box: [-44, -88, 46, 10] },
+    shisui: { scale: 1.3, box: [-42, -86, 42, 8] }, fugaku: { scale: 1.38, box: [-42, -86, 42, 8] }, indra: { scale: 1.42, box: [-44, -94, 46, 10] },
     jiraiya: { scale: 1.34, box: [-44, -94, 40, 8] }, orochimaru: { scale: 1.24, box: [-40, -86, 46, 8] }, kabuto: { scale: 1.22, box: [-50, -92, 40, 8] },
     kazekage1: { scale: 1.22, box: [-40, -90, 40, 8] }, mu: { scale: 1.3, box: [-40, -100, 40, 8] }, obito_rikudo: { scale: 1.45, box: [-40, -92, 44, 8] },
+    pain_asura: { scale: 1.52, box: [-44, -90, 44, 8] }, pain_human: { scale: 1.5, box: [-40, -86, 40, 8] }, pain_animal: { scale: 1.44, box: [-40, -84, 38, 8] },
+    pain_preta: { scale: 1.56, box: [-42, -86, 44, 8] }, pain_naraka: { scale: 1.5, box: [-38, -88, 38, 8] },
+    raikage3: { scale: 1.62, box: [-44, -88, 46, 8] }, kazekage3: { scale: 1.4, box: [-42, -88, 42, 8] }, rasa: { scale: 1.36, box: [-40, -88, 42, 8] },
     tobi: { scale: 1.42, box: [-42, -88, 46, 8] },
+    hanzo: { scale: 1.4, box: [-42, -88, 44, 8] }, lee: { scale: 1.14 },
     kakashi: { scale: 1.18, box: [-38, -84, 38, 8] }
   };
 
@@ -4394,6 +5694,7 @@
     naruto_rinnegan: { hair: '#ffd43b', fringe: 'naruto', accent: '#8a6ad8', marks: ['whiskers'] },
     naruto_baryon_rinnegan: { hair: '#ffb434', fringe: 'naruto', accent: '#c03aa0', marks: ['whiskersBold', 'baryon'] },
     naruto_rikudo: { hair: '#fff27e', fringe: 'naruto', accent: '#ffb020', marks: ['whiskers'] },
+    naruto_kurama: { hair: '#ffe866', fringe: 'naruto', accent: '#ff8a14', marks: ['whiskersBold'] },
     pain: { hair: '#ff8530', fringe: 'spiky', accent: '#7a5ad0', marks: ['pain'] },
     itachi: { hair: '#15151c', fringe: 'part', accent: '#c01020', marks: ['tearTrough'], long: true },
     kisame: { hair: '#2f5694', fringe: 'spiky', accent: '#2a6ab0', marks: ['gills'] },
@@ -4412,6 +5713,8 @@
     minato: { hair: '#ffdd4e', fringe: 'minato', accent: '#ffc83a' },
     guy: { hair: '#16161c', fringe: 'bowl', accent: '#2f9a3e' },
     danzo: { hair: '#2a2830', fringe: 'spiky', accent: '#8fa0b8', marks: ['wrinkles'] },
+    gengetsu: { hair: '#cfe4f1', fringe: 'spiky', accent: '#7fd0ff', marks: ['edo'] },
+    yagura: { hair: '#c2c9c6', fringe: 'spiky', accent: '#6fe0c8', marks: ['edo'] },
     gaara: { hair: '#b8262c', fringe: 'spiky', accent: '#d8b070', marks: ['ai'] },
     mei: { hair: '#b24f2a', fringe: 'mei', accent: '#4a6ad0', long: true },
     ay: { hair: '#f2f0ea', fringe: 'slick', accent: '#ffe45a' },
@@ -4422,17 +5725,32 @@
     jubi: { hair: '#6d6577', fringe: 'bald', accent: '#c06aff', horns: [[-.7, -1.45, -.95], [0, -1.6, 0], [.7, -1.45, .95]] },
     tsunade: { hair: '#f3d36a', fringe: 'part', accent: '#6fac58', marks: ['byakugo'], long: true },
     killer_bee: { hair: '#f0e4b2', fringe: 'spiky', accent: '#ffd23a' },
+    darui: { hair: '#f2f0ea', fringe: 'spiky', accent: '#ffe45a' }, chojuro: { hair: '#94c8e8', fringe: 'spiky', accent: '#7fd0ff' },
+    kurotsuchi: { hair: '#1d1b24', fringe: 'part', accent: '#c8956a' },
     zetsu_white: { hair: '#e2e3d6', fringe: 'bald', accent: '#9aa080' },
     zetsu: { hair: '#3f8f3a', fringe: 'spiky', accent: '#7fd06a' },
     sasuke_indra: { hair: '#17161e', fringe: 'madara', accent: '#9a62f0' },
     sasuke: { hair: '#17161e', fringe: 'madara', accent: '#9a62f0' },
+    shisui: { hair: '#1b1a23', fringe: 'spiky', accent: '#5ad07a' },
+    fugaku: { hair: '#1d1b22', fringe: 'part', accent: '#d84a4a', marks: ['tearTrough'] },
+    indra: { hair: '#15131b', fringe: 'madara', accent: '#8a7aff', long: true },
     jiraiya: { hair: '#efebe4', fringe: 'minato', accent: '#d8402e', marks: ['sage'], long: true },
     orochimaru: { hair: '#131118', fringe: 'part', accent: '#9a5ad8', marks: ['eyeshadow'], long: true },
     kabuto: { hair: '#c7cad3', fringe: 'spiky', accent: '#7fe0b8', marks: ['eyeshadow'], horns: [[-.7, -1.45, -.95], [.7, -1.45, .95]] },
     kazekage1: { hair: '#2b2420', fringe: 'hat', accent: '#2f8f7a', marks: ['edo'] },
+    raikage3: { hair: '#f3f1ea', fringe: 'slick', accent: '#ffe45a', marks: ['edo'] },
+    kazekage3: { hair: '#231c1c', fringe: 'part', accent: '#c8a06a', long: true },
+    rasa: { hair: '#8a3a22', fringe: 'spiky', accent: '#e0b46a', marks: ['edo'] },
     mu: { hair: '#e4dac2', fringe: 'bald', accent: '#c8956a', mask: '#e4dac2', marks: ['edo'] },
     obito_rikudo: { hair: '#f1eff3', fringe: 'spiky', accent: '#b9a8ff', horns: [[-.7, -1.45, -.95], [.7, -1.45, .95]] },
+    pain_asura: { hair: '#ff8530', fringe: 'spiky', accent: '#ff9a5a', marks: ['pain'] },
+    pain_human: { hair: '#ff8530', fringe: 'spiky', accent: '#9fb4d8', marks: ['pain'], long: true },
+    pain_animal: { hair: '#ff8530', fringe: 'part', accent: '#e0b46a', marks: ['pain'] },
+    pain_preta: { hair: '#ff8530', fringe: 'slick', accent: '#b58aff', marks: ['pain'] },
+    pain_naraka: { hair: '#ff8530', fringe: 'spiky', accent: '#ff5a5a', marks: ['pain'] },
     tobi: { hair: '#15131c', fringe: 'spiky', accent: '#ff8a2a' },
+    hanzo: { hair: '#33333d', fringe: 'spiky', accent: '#9fb4d8', mask: '#c8ccd2', long: true },
+    lee: { hair: '#141418', fringe: 'bowl', accent: '#4fc04a' },
     kakashi: { hair: '#d4d9e1', fringe: 'spiky', accent: '#7fb8ff', mask: '#272e40' }
   };
   CU.clone = CU.naruto;

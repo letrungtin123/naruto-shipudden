@@ -20,7 +20,7 @@
     susanooStatus: document.getElementById('susanooStatus'),
     skillB: document.getElementById('skillB'),
     skillBar: document.getElementById('skillBar'), skillG: document.getElementById('skillG'),
-    skillE: document.getElementById('skillE'), skillV: document.getElementById('skillV'), skillH: document.getElementById('skillH'),
+    skillZ: document.getElementById('skillZ'), skillE: document.getElementById('skillE'), skillV: document.getElementById('skillV'), skillH: document.getElementById('skillH'),
     skillQ: document.getElementById('skillQ'), skillSpace: document.getElementById('skillSpace'), skillX: document.getElementById('skillX')
   };
 
@@ -123,7 +123,8 @@
     Space: { name: 'RASENGAN' },
     KeyX: { name: 'RASEN SHURIKEN' },
     KeyG: { name: 'VĨ THÚ NGỌC' },
-    KeyB: { name: 'TRIỆU HỒI SASUKE · INDRA' }
+    KeyB: { name: 'TRIỆU HỒI SASUKE · INDRA' },
+    KeyZ: { name: 'CỬU VĨ · BÁCH PHÂN THÂN RASENGAN' }
   };
   const skillState = {
     fireballs: [], fireSeas: [], tags: [], beastBombs: [], rasenShurikens: [], clones: [], summons: [],
@@ -137,6 +138,7 @@
   const sixPathsState = { effects: [] };
   const indraState = { ally: null, effects: [] };
   const susanooState = { effects: [] };
+  const kuramaState = { clones: [], effects: [] };
   const hokageState = { allies: [], effects: [] };
   const skillEffectLimits = { fireballs: 12, fireSeas: 3, tags: 24, beastBombs: 4, rasenShurikens: 6,
     clones: 8, summons: 1, trails: 32, vortices: 4, explosions: 16 };
@@ -184,7 +186,10 @@
       : faction === 'hokage' ? window.HokageBosses : faction === 'legend' ? window.LegendBosses
       : faction === 'bee' ? window.KillerBeeBoss : faction === 'nagato' ? window.NagatoBoss
       : faction === 'sasuke' ? window.SasukeBoss : faction === 'tobi' ? window.TobiBoss : faction === 'zetsu' ? window.ZetsuBoss
-      : faction === 'danzo' ? window.DanzoBoss : faction === 'jubi' ? window.TenTailsBoss : window.AkatsukiBosses;
+      : faction === 'danzo' ? window.DanzoBoss : faction === 'jubi' ? window.TenTailsBoss
+      : faction === 'edokage' ? window.EdoKageBosses : faction === 'edomizu' ? window.EdoMizukageBosses
+      : faction === 'newkage' ? window.NewKageBosses : faction === 'uchiha' ? window.UchihaBosses
+      : faction === 'paths' ? window.PainPathsBosses : faction === 'duel' ? window.DuelBosses : window.AkatsukiBosses;
   }
   function bossModuleOf(z) {
     if (!z || z.type !== 'boss' || !z.bossId) return null;
@@ -302,6 +307,8 @@
     sixPathsState.effects = [];
     indraState.ally = null; indraState.effects.length = 0;
     for (const k of Object.keys(susanooState)) delete susanooState[k];
+    for (const k of Object.keys(kuramaState)) delete kuramaState[k];
+    kuramaState.clones = []; kuramaState.effects = [];
     susanooState.effects = [];
     endWar(true);
     destructionState.ruins.length = destructionState.scars.length = 0;
@@ -917,11 +924,12 @@
     else if (code === 'KeyF') cast = castLightningDash();
     else if (code === 'KeyG') cast = castBeastBomb();
     else if (code === 'KeyB') cast = castIndra();
+    else if (code === 'KeyZ') cast = !!window.KuramaClones?.cast(kuramaState, player, heroApi());
     if (!cast) return false;
     // Hand-seal pose for ninjutsu; Chidori and the Bijūdama read as a forward strike.
     player.castPose = .32;
     player.castFrame = code === 'KeyF' || code === 'KeyG' ? 'attack' : 'seal';
-    if (code === 'KeyE' || code === 'KeyV' || code === 'KeyH' || code === 'KeyB') updateHUD();
+    if (code === 'KeyE' || code === 'KeyV' || code === 'KeyH' || code === 'KeyB' || code === 'KeyZ') updateHUD();
     return true;
   }
 
@@ -2053,6 +2061,7 @@
     window.SixPathsMode?.update(sixPathsState, me, dt, heroApi());
     window.SasukeIndra?.update(indraState, dt, heroApi());
     window.SusanooMode?.update(susanooState, me, dt, heroApi());
+    window.KuramaClones?.update(kuramaState, me, dt, heroApi());
     updateFireSeas(dt);
     updateTags(dt);
     updateHokageSquad(dt);
@@ -3060,6 +3069,7 @@
       ui.susanooStatus.classList.toggle('active', !!player.susanoo);
     }
     if (ui.skillB) ui.skillB.classList.toggle('active', !!indraState.ally);
+    if (ui.skillZ) ui.skillZ.classList.toggle('active', !!kuramaState.clones?.length);
     if (ui.skillV) ui.skillV.classList.toggle('active', !!mightGuyState.ally);
     if (ui.skillH) ui.skillH.classList.toggle('active', hokageState.allies.length === 4);
     if (ui.skillBar) ui.skillBar.classList.toggle('nine-tails-active', player.nineTails);
@@ -3105,11 +3115,11 @@
     ui.bossBar.classList.toggle('active', !!boss);
     ui.bossBar.classList.toggle('otsutsuki', !!boss && boss.bossFaction === 'otsutsuki');
     ui.bossBar.classList.toggle('beast', !!boss && boss.type === 'beast');
-    ui.bossBar.classList.toggle('kage', !!boss && boss.bossFaction === 'kage');
     ui.bossBar.classList.toggle('madara', !!boss && boss.bossFaction === 'madara');
     // Living bosses get their own heading; only the reanimated ones read "Uế Thổ".
-    const barFaction = { bee: 'war', nagato: 'legend', sasuke: 'rival', tobi: 'rival', zetsu: 'rival', danzo: 'rival', jubi: 'rival' }[boss?.bossFaction] || boss?.bossFaction;
-    for (const f of ['sannin', 'hokage', 'legend', 'war', 'rival']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
+    const barFaction = { bee: 'war', nagato: 'legend', sasuke: 'rival', tobi: 'rival', zetsu: 'rival', danzo: 'rival', jubi: 'rival',
+      edokage: 'legend', edomizu: 'legend', newkage: 'kage', uchiha: 'uchiha', duel: 'duel' }[boss?.bossFaction] || boss?.bossFaction;
+    for (const f of ['kage', 'sannin', 'hokage', 'legend', 'war', 'rival', 'uchiha', 'duel']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
     if (boss) {
       const module = boss.type === 'beast' ? window.TailedBeasts : bossModuleOf(boss);
       const member = module?.members?.[boss.type === 'beast' ? boss.beastId : boss.bossId];
@@ -3862,6 +3872,7 @@
     for (const n of team) if (n.sp) window.SixPathsMode?.drawGround(ctx, n.sp, n.p, elapsed);
     for (const n of team) if (n.ix) window.SasukeIndra?.drawGround(ctx, n.ix, elapsed);
     for (const n of team) if (n.su) window.SusanooMode?.drawGround(ctx, n.su, n.p, elapsed);
+    for (const n of team) if (n.kc) window.KuramaClones?.drawGround(ctx, n.kc, n.p, elapsed);
     if (warState.active && window.WarScene?.drawCrowd) {
       Object.assign(warState.view, { x: camera.x - 50, y: camera.y - 50, w: W + 100, h: H + 100 });
       window.WarScene.drawCrowd(ctx, warState.view, elapsed, warState, LAYOUT.battlefield, me);
@@ -3890,6 +3901,7 @@
       if (n.sp) window.SixPathsMode?.drawOverlay(ctx, n.sp, p, elapsed);
       if (n.ix) window.SasukeIndra?.drawOverlay(ctx, n.ix, elapsed);
       if (n.su) window.SusanooMode?.drawOverlay(ctx, n.su, p, elapsed);
+      if (n.kc) window.KuramaClones?.drawOverlay(ctx, n.kc, p, elapsed);
       ctx.save(); ctx.translate(0, -HAND_HEIGHT);
       if (p.weapon === 'staff' && window.SixPathsStaff) window.SixPathsStaff.drawSwing(ctx, p, elapsed);
       if (p.weapon === 'susano' && window.SusanoBlades) window.SusanoBlades.drawSwing(ctx, p, elapsed);
@@ -4160,7 +4172,7 @@
   const ENEMY_KINDS = ['walker', 'runner', 'brute', 'spitter', 'boss', 'beast'];
   const ENEMY_SKILLS = ['', 'dash', 'stomp', 'bossPulse', 'shuriken', 'fire', 'fan'];
   const NET_SKIP_KEYS = new Set(['target', 'stuckTo', 'hitIds', 'player', 'hand', 'elapsed', 'startedAt', 'netProxy']);
-  const localNinja = { p: me, sk: skillState, pc: purpleChidoriState, mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState,
+  const localNinja = { p: me, sk: skillState, pc: purpleChidoriState, mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState, kc: kuramaState,
     local: true, firing: false, color: COOP_COLORS[0], name: '' };
   const ninjaList = [localNinja];
 
@@ -4254,7 +4266,7 @@
       sk: { fireballs: sk.fireballs, fireSeas: sk.fireSeas, tags: sk.tags, beastBombs: sk.beastBombs, rasenShurikens: sk.rasenShurikens, clones: sk.clones,
         summons: sk.summons, trails: sk.trails, vortices: sk.vortices, explosions: sk.explosions, charge: sk.charge },
       pc: { trails: purpleChidoriState.trails, bursts: purpleChidoriState.bursts, charge: purpleChidoriState.charge },
-      mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState, b: own }));
+      mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState, kc: kuramaState, b: own }));
     net.impacts.length = 0;
   }
 
@@ -4284,7 +4296,7 @@
     let view = peer.view;
     if (!view) {
       view = peer.view = { p: { r: 13, remote: true, peerId: from, x: msg.p.x, y: msg.p.y }, local: false,
-        sk: null, pc: null, mg: null, hk: null, rn: null, by: null, sp: null, ix: null, su: null, bullets: [], firing: false, color: COOP_COLORS[peer.slot], name: peer.name };
+        sk: null, pc: null, mg: null, hk: null, rn: null, by: null, sp: null, ix: null, su: null, kc: null, bullets: [], firing: false, color: COOP_COLORS[peer.slot], name: peer.name };
     }
     const body = view.p, ox = body.x, oy = body.y;
     Object.assign(body, msg.p);
@@ -4292,7 +4304,7 @@
     // Glide toward the reported spot; Chidori dashes and respawns snap straight there.
     if (Math.hypot(body.tx - ox, body.ty - oy) < 220) { body.x = ox; body.y = oy; }
     view.sk = msg.sk; view.pc = msg.pc; view.mg = msg.mg; view.hk = msg.hk; view.rn = msg.rn || { effects: [] }; view.by = msg.by || { effects: [] };
-    view.sp = msg.sp || { effects: [] }; view.ix = msg.ix || { ally: null, effects: [] }; view.su = msg.su || { effects: [] };
+    view.sp = msg.sp || { effects: [] }; view.ix = msg.ix || { ally: null, effects: [] }; view.su = msg.su || { effects: [] }; view.kc = msg.kc || { clones: [], effects: [] };
     view.bullets = msg.b || []; view.firing = !!msg.f;
   }
 
@@ -4738,6 +4750,11 @@
   const spawnUI = { screen: document.getElementById('spawnScreen'), groups: document.getElementById('spawnGroups'), war: document.getElementById('warToggle'),
     total: document.getElementById('spawnTotal'), counts: new Map(), inputs: new Map(), built: false };
 
+  // One panel group from several boss modules: [[faction, module], ...].
+  function roster(title, modules) {
+    return { title, items: modules.flatMap(([faction, M]) => (M?.order || []).map(id => ({ key: 'x' + faction + ':' + id, type: 'boss', faction, id, name: M.members[id].name,
+      sprite: window.AnimeSprites?.has(M.members[id].sprite || id) ? M.members[id].sprite || id : 'pain', tone: M.members[id].accent || '#e8c070' }))) };
+  }
   function spawnCatalog() {
     const A = window.AkatsukiBosses, O = window.OtsutsukiBosses, T = window.TailedBeasts;
     const tone = { walker: '#8aaedf', runner: '#67d7ff', brute: '#caa477', spitter: '#ff844b' };
@@ -4756,9 +4773,12 @@
       { title: 'ĐẠI CHIẾN NHẪN GIẢ LẦN 4', items: [['madara', window.MadaraBosses], ['nagato', window.NagatoBoss], ['bee', window.KillerBeeBoss]]
         .flatMap(([faction, M]) => (M?.order || []).map(id => ({ key: 'w' + faction[0] + ':' + id, type: 'boss', faction, id, name: M.members[id].name,
           sprite: window.AnimeSprites?.has(M.members[id].sprite || id) ? M.members[id].sprite || id : 'pain', tone: M.members[id].accent || '#e8c070' }))) },
-      { title: 'KẺ THÙ TRUYỀN KIẾP', items: [['sasuke', window.SasukeBoss], ['tobi', window.TobiBoss], ['zetsu', window.ZetsuBoss], ['danzo', window.DanzoBoss], ['jubi', window.TenTailsBoss]]
-        .flatMap(([faction, M]) => (M?.order || []).map(id => ({ key: 'x' + faction + ':' + id, type: 'boss', faction, id, name: M.members[id].name,
-          sprite: window.AnimeSprites?.has(M.members[id].sprite || id) ? M.members[id].sprite || id : 'pain', tone: M.members[id].accent || '#e8c070' }))) },
+      roster('KẺ THÙ TRUYỀN KIẾP', [['sasuke', window.SasukeBoss], ['tobi', window.TobiBoss], ['zetsu', window.ZetsuBoss], ['danzo', window.DanzoBoss], ['jubi', window.TenTailsBoss]]),
+      roster('KAGE ĐỜI TRƯỚC · UẾ THỔ', [['edokage', window.EdoKageBosses], ['edomizu', window.EdoMizukageBosses]]),
+      roster('KAGE ĐỜI MỚI', [['newkage', window.NewKageBosses]]),
+      roster('GIA TỘC UCHIHA', [['uchiha', window.UchihaBosses]]),
+      roster('PAIN LỤC ĐẠO', [['akatsuki', { order: A?.members?.pain ? ['pain'] : [], members: A?.members || {} }], ['paths', window.PainPathsBosses]]),
+      roster('ĐỐI THỦ · NHẪN GIẢ', [['duel', window.DuelBosses]]),
       { title: 'ŌTSUTSUKI', items: (O?.order || []).map(id =>
         ({ key: 'o:' + id, type: 'boss', faction: 'otsutsuki', id, name: O.members[id].name, sprite: id, tone: O.members[id].accent || '#d6beff' })) },
       { title: 'VĨ THÚ', items: (T?.order || []).map(id =>
@@ -4977,7 +4997,8 @@
     // Bake the rarer casts in the background so the first boss or summon doesn't hitch.
     const later = ['naruto_baryon', 'naruto_rinnegan', 'pain', 'itachi', 'kisame', 'deidara', 'sasori', 'kakuzu', 'konan', 'hidan',
       'momoshiki', 'kinshiki', 'isshiki', 'kaguya', 'hashirama', 'tobirama', 'hiruzen', 'minato', 'guy',
-      ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo', 'madara', 'madara_rikudo', 'nagato', 'killer_bee', 'sasuke', 'tobi', 'zetsu', 'danzo', 'jubi', 'zetsu_white'].filter(id => window.AnimeSprites.has(id))];
+      ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo', 'madara', 'madara_rikudo', 'nagato', 'killer_bee', 'sasuke', 'tobi', 'zetsu', 'danzo', 'jubi', 'zetsu_white', 'raikage3', 'kazekage3', 'rasa', 'gengetsu', 'yagura', 'darui', 'chojuro', 'kurotsuchi',
+      'shisui', 'fugaku', 'indra', 'pain_asura', 'pain_human', 'pain_animal', 'pain_preta', 'pain_naraka', 'hanzo', 'lee', 'naruto_kurama'].filter(id => window.AnimeSprites.has(id))];
     const bake = () => { if (later.length) { window.AnimeSprites.prewarm([later.shift()]); setTimeout(bake, 30); } };
     setTimeout(bake, 400);
   }

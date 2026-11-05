@@ -309,7 +309,7 @@
     for (const b of ui.modeBtns) { const on = b.dataset.mode === setup.mode; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
     ui.note.textContent = setup.mode === 'watch'
       ? 'Chỉ xem: bạn không điều khiển ai, camera tự do (WASD, kéo chuột, F tự theo trận đánh). Có thể bấm Tab hoặc chuột phải vào nhân vật để nhập vai bất cứ lúc nào.'
-      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, Shift lướt, Backspace chuyển sang chỉ xem.`;
+      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (giữ để lướt liên tục), Backspace chuyển sang chỉ xem.`;
   }
   function renderSetup() { renderModes(); renderList(); drawSetupMap(); }
   function openSetup() {
@@ -501,11 +501,11 @@
       root.replaceChildren();
       root.style.setProperty('--team', data.color);
       const basic = el('div', 'mv-slot mv-basic');
-      basic.append(el('kbd', '', 'CHUỘT'), el('strong', '', 'ĐÁNH THƯỜNG'));
+      basic.append(el('kbd', '', 'CHUỘT TRÁI'), el('strong', '', 'CHIÊU LIÊN HOÀN'));
       root.append(basic);
       const dash = el('div', 'mv-slot mv-dash');
       mv.dashLeft = el('span', 'mv-left');
-      dash.append(el('kbd', '', 'SHIFT'), el('strong', '', 'LƯỚT'), mv.dashLeft);
+      dash.append(el('kbd', '', 'CHUỘT PHẢI'), el('strong', '', 'LƯỚT'), mv.dashLeft);
       mv.dash = dash;
       root.append(dash);
       mv.slots = data.moves.map((m, i) => {
@@ -532,6 +532,7 @@
       const t = m.left > 0 ? String(Math.ceil(m.left)) : '';
       if (slot.left.textContent !== t) slot.left.textContent = t;
       slot.s.classList.toggle('cooling', m.left > 0);
+      slot.s.classList.toggle('mv-next', i === data.next);
     });
   }
   function hideHud() {

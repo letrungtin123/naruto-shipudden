@@ -2464,6 +2464,9 @@ kbd {
 #hud.team-watch .minimap-seal { pointer-events: auto; cursor: pointer; }
 .mv-dash { border-top-color: #9fe0ff; }
 .mv-dash kbd { font-size: 8px; }
+/* The move the next left click casts. */
+.mv-slot.mv-next { border-color: var(--team); box-shadow: 0 0 0 2px var(--team), 0 8px 18px rgba(0, 0, 0, .45); transform: translateY(-3px); }
+.mv-slot.mv-next strong { color: #fff; }
 
 /* Đấu Đội: shadow clones (E) are off */
 .skill.locked { opacity: .35; filter: grayscale(1); }

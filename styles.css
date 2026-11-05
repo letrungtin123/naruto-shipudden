@@ -2058,9 +2058,10 @@ kbd {
 .war-copy small { font-size: 12px; line-height: 1.35; color: #e8d6c0; }
 
 /* Sannin, Edo Tensei Hokage and legends: same frame, each with its own tone */
-.faction-sannin, .faction-hokage, .faction-legend, .faction-war, .faction-rival, .faction-uchiha, .faction-duel { display: none; }
+.faction-sannin, .faction-hokage, .faction-legend, .faction-war, .faction-rival, .faction-uchiha, .faction-duel, .faction-konoha { display: none; }
 #bossBar.sannin .faction-akatsuki, #bossBar.hokage .faction-akatsuki, #bossBar.legend .faction-akatsuki,
-#bossBar.war .faction-akatsuki, #bossBar.rival .faction-akatsuki, #bossBar.uchiha .faction-akatsuki, #bossBar.duel .faction-akatsuki { display: none; }
+#bossBar.war .faction-akatsuki, #bossBar.rival .faction-akatsuki, #bossBar.uchiha .faction-akatsuki, #bossBar.duel .faction-akatsuki, #bossBar.konoha .faction-akatsuki { display: none; }
+#bossBar.konoha .faction-konoha { display: inline; color: #ffc07a; }
 #bossBar.uchiha .faction-uchiha { display: inline; color: #ff8a8a; }
 #bossBar.duel .faction-duel { display: inline; color: #9fe06a; }
 #bossBar.war .faction-war { display: inline; color: #ffd27a; }
@@ -2108,6 +2109,12 @@ kbd {
   outline-color: rgba(160, 230, 120, .8);
   box-shadow: 0 10px 26px rgba(0, 0, 0, .5), 0 0 20px rgba(110, 210, 80, .35);
 }
+#bossBar.konoha {
+  background: radial-gradient(ellipse at 85% 20%, rgba(255, 160, 60, .26), transparent 60%), radial-gradient(ellipse at 10% 80%, rgba(110, 200, 90, .2), transparent 55%), linear-gradient(180deg, #17140a, #070904);
+  outline-color: rgba(255, 190, 110, .8);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .5), 0 0 20px rgba(255, 160, 60, .35);
+}
+#bossBar.konoha #bossHealthBar { background: linear-gradient(180deg, #fff0d8 0%, #ff9a3a 45%, #6a3a0c 100%); box-shadow: 0 0 16px rgba(255, 160, 60, .7); }
 #bossBar.duel #bossHealthBar { background: linear-gradient(180deg, #e8ffd8 0%, #6fd04a 45%, #1c5a10 100%); box-shadow: 0 0 16px rgba(110, 210, 80, .7); }
 #bossBar.rival #bossHealthBar { background: linear-gradient(180deg, #f0e2ff 0%, #a26aff 45%, #3a1a7a 100%); box-shadow: 0 0 16px rgba(160, 110, 255, .7); }
 
@@ -2457,3 +2464,6 @@ kbd {
 #hud.team-watch .minimap-seal { pointer-events: auto; cursor: pointer; }
 .mv-dash { border-top-color: #9fe0ff; }
 .mv-dash kbd { font-size: 8px; }
+
+/* Đấu Đội: shadow clones (E) are off */
+.skill.locked { opacity: .35; filter: grayscale(1); }

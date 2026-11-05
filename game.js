@@ -91,6 +91,8 @@
   const SIXPATHS_HEALTH = 100, SIXPATHS_REGEN = .025, SIXPATHS_SPEED = 2.3;
   // Susanoo mode (O): its jutsu live in susanoo-mode.js. The ribcage and armour soak most of every hit.
   const SUSANOO_HEALTH = 40, SUSANOO_REGEN = .02, SUSANOO_GUARD = .35;
+  // Team battle: the single heal-over-time every Naruto mode gives (fraction of max HP per second).
+  const TEAM_MODE_REGEN = .004;
   // Rinnegan mode (U).
   const RINNEGAN_HEALTH = 20, RINNEGAN_REGEN = .02, SHINRA_RADIUS = 320, BANSHO_RANGE = 620, BANSHO_RADIUS = 190;
   const CHIBAKU_RADIUS = 300, CHIBAKU_LIFE = 3.4, CHIBAKU_RANGE = 560, GAKIDO_RADIUS = 85;
@@ -190,6 +192,10 @@
       : faction === 'edokage' ? window.EdoKageBosses : faction === 'edomizu' ? window.EdoMizukageBosses
       : faction === 'newkage' ? window.NewKageBosses : faction === 'uchiha' ? window.UchihaBosses
       : faction === 'paths' ? window.PainPathsBosses : faction === 'duel' ? window.DuelBosses
+      : faction === 'kyubi' ? window.KyubiBoss : faction === 'rookie' ? window.KonohaRookieBosses : faction === 'konoha11' ? window.KonohaElevenBosses
+      : faction === 'jonin' ? window.KonohaJoninBosses : faction === 'sunakiri' ? window.SunaKiriBosses : faction === 'sound' ? window.SoundBosses
+      : faction === 'taka' ? window.TakaBosses : faction === 'rikudo' ? window.SageBosses : faction === 'jinchu' ? window.JinchurikiBosses
+      : faction === 'boruto' ? window.BorutoBosses : faction === 'kara' ? window.KaraBosses
       : faction === 'naruto' ? window.NarutoUnits : window.AkatsukiBosses;
   }
   function bossModuleOf(z) {
@@ -451,11 +457,16 @@
       if (player.down <= 0) respawn();
       return;
     }
+    // Đấu Đội: any mode heals, but only a trickle and it doesn't stack, so a moded Naruto isn't unkillable.
+    const anyMode = player.nineTails || player.gates || player.rinnegan || player.sixPaths || player.susanoo;
+    if (team.active) { if (anyMode) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * TEAM_MODE_REGEN * dt); }
+    else {
     if (player.nineTails) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * .02 * dt);
     if (player.gates) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * GATES_REGEN * dt);
     if (player.rinnegan) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * RINNEGAN_REGEN * dt);
     if (player.sixPaths) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * SIXPATHS_REGEN * dt);
     if (player.susanoo) player.health = Math.min(player.maxHealth, player.health + player.maxHealth * SUSANOO_REGEN * dt);
+    }
     // In co-op the match keeps running behind the pause menu and big map, without input.
     const input = !paused && !largeMap;
     if (player.leap) { updateLeap(dt); return; }
@@ -943,6 +954,7 @@
   function activateSkill(code) {
     const skill = SKILLS[code];
     if (!skill) return false;
+    if (code === 'KeyE' && team.active) { showToast('ĐẤU ĐỘI: KHÔNG DÙNG ẢNH PHÂN THÂN (E)', 1.3); return false; }
     if (code === 'KeyG' && !player.nineTails) { showToast('BẬT BARYON MODE BẰNG PHÍM T ĐỂ DÙNG VĨ THÚ NGỌC', 1.3); return false; }
     player.angle = Math.atan2(mouse.y + camera.y - player.y, mouse.x + camera.x - player.x);
     let cast = false;
@@ -3180,7 +3192,7 @@
       ui.rinneganStatus.classList.toggle('active', !!player.rinnegan);
     }
     if (ui.skillG) ui.skillG.classList.toggle('active', player.nineTails);
-    if (ui.skillE) ui.skillE.classList.toggle('active', skillState.clones.length > 0);
+    if (ui.skillE) { ui.skillE.classList.toggle('active', skillState.clones.length > 0); ui.skillE.classList.toggle('locked', team.active); }
     if (ui.sixPathsStatus) {
       setText(ui.sixPathsStatus, player.sixPaths ? 'I · LỤC ĐẠO TIÊN NHÂN: BẬT' : 'I · LỤC ĐẠO TIÊN NHÂN: TẮT');
       ui.sixPathsStatus.classList.toggle('active', !!player.sixPaths);
@@ -3235,13 +3247,14 @@
       }
     }
     ui.bossBar.classList.toggle('active', !!boss);
-    ui.bossBar.classList.toggle('otsutsuki', !!boss && boss.bossFaction === 'otsutsuki');
-    ui.bossBar.classList.toggle('beast', !!boss && boss.type === 'beast');
+    ui.bossBar.classList.toggle('otsutsuki', !!boss && ['otsutsuki', 'rikudo', 'kara'].includes(boss.bossFaction));
+    ui.bossBar.classList.toggle('beast', !!boss && (boss.type === 'beast' || boss.bossFaction === 'kyubi'));
     ui.bossBar.classList.toggle('madara', !!boss && boss.bossFaction === 'madara');
     // Living bosses get their own heading; only the reanimated ones read "Uế Thổ".
     const barFaction = { bee: 'war', nagato: 'legend', sasuke: 'rival', tobi: 'rival', zetsu: 'rival', danzo: 'rival', jubi: 'rival',
-      edokage: 'legend', edomizu: 'legend', newkage: 'kage', uchiha: 'uchiha', duel: 'duel' }[boss?.bossFaction] || boss?.bossFaction;
-    for (const f of ['kage', 'sannin', 'hokage', 'legend', 'war', 'rival', 'uchiha', 'duel']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
+      edokage: 'legend', edomizu: 'legend', newkage: 'kage', uchiha: 'uchiha', duel: 'duel',
+      rookie: 'konoha', konoha11: 'konoha', jonin: 'konoha', boruto: 'konoha', sunakiri: 'duel', sound: 'duel', taka: 'duel', jinchu: 'war' }[boss?.bossFaction] || boss?.bossFaction;
+    for (const f of ['kage', 'sannin', 'hokage', 'legend', 'war', 'rival', 'uchiha', 'duel', 'konoha']) ui.bossBar.classList.toggle(f, !!boss && barFaction === f);
     if (boss) {
       const module = boss.type === 'beast' ? window.TailedBeasts : bossModuleOf(boss);
       const member = module?.members?.[boss.type === 'beast' ? boss.beastId : boss.bossId];
@@ -5181,7 +5194,6 @@
     if (d < 200 && ai.rasengan <= 0) { castRasengan(rand(.3, .8)); me.castPose = .32; me.castFrame = 'attack'; ai.rasengan = rand(4, 5.5); }
     else if (d < 640 && ai.shuriken <= 0) { castRasenShuriken(rand(.3, .8)); me.castPose = .35; me.castFrame = 'raise'; ai.shuriken = rand(6.5, 8.5); }
     else if (d < 460 && ai.fire <= 0) { castFireball(); me.castPose = .32; me.castFrame = 'seal'; ai.fire = rand(3, 4); }
-    else if (d < 800 && ai.clones <= 0 && !skillState.clones.length) { castClones(); me.castPose = .32; me.castFrame = 'seal'; ai.clones = rand(18, 24); }
     else if (me.fireCooldown <= 0 && d < reach + 12) shoot();
   }
 
@@ -5552,10 +5564,19 @@
       roster('GIA TỘC UCHIHA', [['uchiha', window.UchihaBosses]]),
       roster('PAIN LỤC ĐẠO', [['akatsuki', { order: A?.members?.pain ? ['pain'] : [], members: A?.members || {} }], ['paths', window.PainPathsBosses]]),
       roster('ĐỐI THỦ · NHẪN GIẢ', [['duel', window.DuelBosses]]),
+      roster('KONOHA · THẾ HỆ MỚI', [['rookie', window.KonohaRookieBosses], ['konoha11', window.KonohaElevenBosses]]),
+      roster('JŌNIN LÀNG LÁ', [['jonin', window.KonohaJoninBosses]]),
+      roster('LÀNG CÁT · LÀNG SƯƠNG MÙ', [['sunakiri', window.SunaKiriBosses]]),
+      roster('ÂM NHẪN NGŨ · LÀNG ÂM THANH', [['sound', window.SoundBosses]]),
+      roster('ĐỘI TAKA · SAMURAI', [['taka', window.TakaBosses]]),
+      roster('NHÂN TRỤ LỰC', [['jinchu', window.JinchurikiBosses]]),
       { title: 'ŌTSUTSUKI', items: (O?.order || []).map(id =>
         ({ key: 'o:' + id, type: 'boss', faction: 'otsutsuki', id, name: O.members[id].name, sprite: id, tone: O.members[id].accent || '#d6beff' })) },
+      roster('LỤC ĐẠO · KHỞI NGUYÊN', [['rikudo', window.SageBosses]]),
+      roster('THỜI BORUTO · KARA', [['boruto', window.BorutoBosses], ['kara', window.KaraBosses]]),
       { title: 'VĨ THÚ', items: (T?.order || []).map(id =>
-        ({ key: 'b:' + id, type: 'beast', id, name: T.members[id].name, tails: T.members[id].tails, tone: T.members[id].accent || '#ffa62b' })) }
+        ({ key: 'b:' + id, type: 'beast', id, name: T.members[id].name, tails: T.members[id].tails, tone: T.members[id].accent || '#ffa62b' }))
+        .concat(roster('', [['kyubi', window.KyubiBoss]]).items) }
     ];
   }
 
@@ -5791,7 +5812,8 @@
     const later = ['naruto_baryon', 'naruto_rinnegan', 'pain', 'itachi', 'kisame', 'deidara', 'sasori', 'kakuzu', 'konan', 'hidan',
       'momoshiki', 'kinshiki', 'isshiki', 'kaguya', 'hashirama', 'tobirama', 'hiruzen', 'minato', 'guy',
       ...VILLAGE_NINJA_TYPES, 'gaara', 'mei', 'ay', 'onoki', ...['naruto_rikudo', 'sasuke_indra', 'tsunade', 'jiraiya', 'orochimaru', 'kabuto', 'kakashi', 'kazekage1', 'mu', 'obito_rikudo', 'madara', 'madara_rikudo', 'nagato', 'killer_bee', 'sasuke', 'tobi', 'zetsu', 'danzo', 'jubi', 'zetsu_white', 'raikage3', 'kazekage3', 'rasa', 'gengetsu', 'yagura', 'darui', 'chojuro', 'kurotsuchi',
-      'shisui', 'fugaku', 'indra', 'pain_asura', 'pain_human', 'pain_animal', 'pain_preta', 'pain_naraka', 'hanzo', 'lee', 'naruto_kurama'].filter(id => window.AnimeSprites.has(id))];
+      'shisui', 'fugaku', 'indra', 'pain_asura', 'pain_human', 'pain_animal', 'pain_preta', 'pain_naraka', 'hanzo', 'lee', 'naruto_kurama',
+      'kurama', 'sakura', 'hinata', 'neji', 'shikamaru', 'choji', 'ino', 'kiba', 'shino', 'tenten', 'yamato', 'sai', 'asuma', 'kurenai', 'kankuro', 'temari', 'zabuza', 'haku', 'kimimaro', 'sakon', 'tayuya', 'kidomaru', 'jirobo', 'suigetsu', 'jugo', 'karin', 'mifune', 'hagoromo', 'hamura', 'ashura', 'yugito', 'roshi', 'han', 'utakata', 'fu', 'boruto', 'sarada', 'mitsuki', 'kawaki', 'jigen', 'code', 'kashin', 'urashiki', 'toneri'].filter(id => window.AnimeSprites.has(id))];
     const bake = () => { if (later.length) { window.AnimeSprites.prewarm([later.shift()]); setTimeout(bake, 30); } };
     setTimeout(bake, 400);
   }

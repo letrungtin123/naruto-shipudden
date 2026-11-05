@@ -6429,6 +6429,11 @@
     has: id => !!SPECS[id],
     draw, drawFallen, shadow, height, prewarm, drawPortrait, drawCloseUp,
     drawBaryonBehind, drawBaryonAbove, drawGatesAura, drawSmoke,
-    renderCharacter: (ctx, id, frame) => renderCharacter(ctx, SPECS[id], poseOf(SPECS[id], frame))
+    renderCharacter: (ctx, id, frame) => renderCharacter(ctx, SPECS[id], poseOf(SPECS[id], frame)),
+    // Sprite helpers for boss modules that register their own characters (see addSprite).
+    kit: { AKA, ARM_A, ARM_B, CATCH, CREASE, DEEP, DEEP2, DEG, FRAMES, GLOSS, HAIR, HAIR_LINE, HEAD, HEAD_K, HIP_N, HIP_F, KURAMA_EAR, LEG_K, LIFT, LX, LY, MADARA_RED, MADARA_DEEP, MADARA_SUIT, MADARA_TIPS, MANE_BACK, NARUTO_BACK_TIPS, NARUTO_BAND, NARUTO_POSES, NARUTO_TIPS, POSES, RUN_LEGS, RUN_LIFT, RUN_N, SCLERA, SHADE, SH_N, SH_F, TAU, akatsukiSpec, brow, chojuroSpec, clamp, cloud, creases, curlyHair, danzoSpec, dark, daruiSpec, dot, drawArm, drawBand, drawEye, drawHand, drawHead, drawLeg, drawMouth, drawSealHands, drawSkirt, edgeCtrl, edoCracks, edoSclera, ell, eyeShape, flakVest, fringeShadow, fugakuSpec, gengetsuSpec, gloss, gruntSpec, gunbai, hairGloss, hanzoSpec, headPath, horns, indraSpec, jiraiyaSpec, jubiSpec, kabutoSpec, kageKasa, kakashiSpec, kazekage1Spec, kazekage3Spec, killerBeeSpec, kuramaEar, kurotsuchiSpec, lazyLid, leeSpec, lerp, light, limb, line, lit, litN, locks, lum, madaraSpec, maneDrape, maneFront, mangekyoEye, mix, muSpec, nagatoSpec, narutoKuramaSpec, narutoRikudoSpec, narutoSpec, obitoRikudoSpec, onFace, orochimaruSpec, painPathSpec, paint, paintIris, plateSymbol, polar, poly, poseOf, raikage3Spec, rasaSpec, renderCharacter, rgb, rgba, robeSpec, sasukeIndraSpec, sasukeSpec, seg, serpentBody, shine, shisuiSpec, smooth, snakeEye, snakeHead, spikeHair, stud, sweptBack, sweptHair, sweptPath, thirdEye, tobiSpec, tomoe, torsoPath, torsoShade, tsunadeSpec, uchihaFan, whiskers, yaguraSpec, yaguraStaff, zetsuSpec, zetsuSpec2, zetsuTeeth },
+    // addSprite(id, spec, meta?, closeUp?): register a character spec built with `kit` from another file
+    // (loaded after this one). Same shape as the entries of SPECS / META / CU above.
+    addSprite(id, spec, meta, closeUp) { SPECS[id] = spec; if (meta) META[id] = meta; if (closeUp) CU[id] = closeUp; }
   };
 })();

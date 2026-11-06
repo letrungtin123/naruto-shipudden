@@ -1875,6 +1875,7 @@ kbd {
 .lobby-players li.empty { color: rgba(52, 32, 15, .45); border-left-color: rgba(52, 32, 15, .2); font-weight: 500; }
 .lobby-players small { color: #8e1b14; font: 600 10px/1 var(--font-head); letter-spacing: .14em; }
 .lobby-leave { margin-top: 12px; }
+.lobby-team { margin-top: 10px; }
 #pauseLeave { margin-top: 10px; }
 
 #coopPanel {
@@ -2470,3 +2471,33 @@ kbd {
 
 /* Đấu Đội: shadow clones (E) are off */
 .skill.locked { opacity: .35; filter: grayscale(1); }
+
+/* Co-op team battle: pick your team. */
+.team-pick { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(10, 7, 5, .62); }
+.team-pick[hidden] { display: none; }
+.team-pick-card { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 22px 18px; text-align: center; color: #f6e9cc; background: #24180f; border: 2px solid #8a5a2a; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+.team-pick-title { margin: 4px 0 6px; font: 400 clamp(26px, 4vw, 38px)/1.05 var(--font-display); letter-spacing: .04em; }
+.team-pick-note { margin: 0 0 14px; font-size: 13px; line-height: 1.45; color: #d9c6a2; }
+.team-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.team-pick-btn { display: grid; gap: 4px; padding: 12px 10px; text-align: left; color: #fff4e2; background: #1a120c; border: 2px solid #4a3220; border-left: 6px solid var(--team); cursor: pointer; font: inherit; }
+.team-pick-btn strong { font: 800 15px/1.1 var(--font-head, system-ui); letter-spacing: .04em; color: var(--team); }
+.team-pick-btn span { font-size: 12px; color: #c8b08a; }
+.team-pick-btn:hover, .team-pick-btn:focus-visible { border-color: var(--team); outline: none; background: #2a1c12; }
+.team-pick-btn.on { box-shadow: inset 0 0 0 2px var(--team); }
+
+/* Co-op seats on the team setup cards, and the guests' team choice in the lobby. */
+.team-seats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(246, 233, 204, .18); }
+.team-seat { padding: 3px 8px; font: 800 11px/1.2 system-ui, sans-serif; letter-spacing: .03em; color: #1a120c; background: var(--slot, #ffb43a); border-radius: 2px; }
+.team-seat-join { margin-left: auto; padding: 4px 9px; font: 800 11px/1 system-ui, sans-serif; letter-spacing: .04em; color: #fff4e2; background: #3a2616; border: 1px solid #8a5a2a; cursor: pointer; }
+.team-seat-join:hover, .team-seat-join:focus-visible { background: #4e331d; outline: none; border-color: #ffb43a; }
+.lobby-teams { margin: 12px 0 4px; text-align: left; }
+.lobby-teams[hidden] { display: none; }
+.lobby-teams-head { margin-bottom: 8px; font: 800 12px/1.3 system-ui, sans-serif; letter-spacing: .06em; color: #ffd9a0; text-align: center; }
+.lobby-teams .team-pick-grid { margin-bottom: 8px; }
+.lobby-teams .team-pick-watch { width: 100%; }
+
+/* A co-op guest on the host's team setup: only its own team's units can be changed. */
+#teamSetup.guest .team-stepper, #teamSetup.guest .team-modes, #teamSetup.guest .team-presets,
+#teamSetup.guest .team-foot .coop-btn, #teamSetup.guest .team-toolbar > .team-label { display: none; }
+#teamSetup.guest .team-map { cursor: default; }
+#teamSetup.guest .team-name { pointer-events: none; }

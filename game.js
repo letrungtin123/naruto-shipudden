@@ -2770,7 +2770,7 @@
         // Team battle: fight the nearest unit of another team (or Naruto); the driven unit aims at the cursor.
         curTeam = z.team;
         if (z.invuln > 0) z.invuln -= dt;
-        player = z.manual ? cursorPseudo() : unitFoe(z) || idlePseudo(z);
+        player = z.manual ? cursorPseudo(z) : unitFoe(z) || idlePseudo(z);
         if (!z.manual && !(isGiant(z) && aiDodge(z))) aiDash(z, player, dist(z, player));
       } else {
         if (!targetList.length) return;
@@ -4119,12 +4119,26 @@
     ctx.restore();ctx.globalCompositeOperation='source-over';
   }
 
+  // The aim cursor is the system cursor (always visible, no frame of lag): a big crosshair with a black
+  // outline, tinted by the current weapon or mode (white while firing). Rebuilt only when the colour changes.
+  const cursorCache = new Map();
+  function aimCursor(col) {
+    let c = cursorCache.get(col);
+    if (!c) {
+      const arms = 'M16 2v9M16 21v9M2 16h9M21 16h9';
+      const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'>"
+        + "<path d='" + arms + "' stroke='#000' stroke-width='5' stroke-linecap='round'/>"
+        + "<path d='" + arms + "' stroke='" + col + "' stroke-width='2.4' stroke-linecap='round'/>"
+        + "<circle cx='16' cy='16' r='3.2' fill='" + col + "' stroke='#000' stroke-width='1.6'/></svg>";
+      c = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '") 16 16, crosshair';
+      cursorCache.set(col, c);
+    }
+    return c;
+  }
   function drawCrosshair(){
-    if(!running||paused||largeMap)return;
-    const gap=7+(mouse.down?Math.sin(elapsed*28)*1.5:0),len=7;
-    ctx.save();ctx.translate(mouse.x,mouse.y);ctx.strokeStyle=player.nineTails?'#ff595f':player.weapon==='susano'?'#bd87ff':player.weapon==='staff'?'#b9aaff':player.weapon==='kunai'?'#ffcf5a':'#dfe8ee';ctx.lineWidth=1.7;ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=6;
-    ctx.beginPath();ctx.moveTo(-gap-len,0);ctx.lineTo(-gap,0);ctx.moveTo(gap,0);ctx.lineTo(gap+len,0);ctx.moveTo(0,-gap-len);ctx.lineTo(0,-gap);ctx.moveTo(0,gap);ctx.lineTo(0,gap+len);ctx.stroke();
-    ctx.fillStyle=player.nineTails?'#fff1d0':player.weapon==='susano'?'#f4e8ff':player.weapon==='staff'?'#f2ecff':mouse.down?'#fff7c9':'#d9ff43';ctx.beginPath();ctx.arc(0,0,1.7,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.restore();
+    const col=!running||paused||largeMap?null:player.nineTails?'#ff6a70':player.weapon==='susano'?'#c99bff':player.weapon==='staff'?'#c6baff':player.weapon==='kunai'?'#ffd45a':'#e8ff5a';
+    const cur=col?aimCursor(mouse.down?'#ffffff':col):'default';
+    if(canvas.__cursor!==cur){canvas.style.cursor=cur;canvas.__cursor=cur;}
   }
 
   // The village layout never changes during a run, so the map base is painted once.
@@ -4246,14 +4260,19 @@
     const war = warState.active ? warState.phase : 0;
     return { bloom: 1.05 + nightAmount() * .45 + (war === 2 || war === 3 ? .25 : 0), threshold: .9 - nightAmount() * .08 };
   }
-  function render(){if(window.PostFX&&shake>7)window.PostFX.aberrate(Math.min(.011,(shake-6)*.0008),.25);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#0c1114';ctx.fillRect(0,0,W,H);drawWorld();drawAtmosphere();drawLightBloom();if(warState.active&&window.WarScene)window.WarScene.drawScreen(ctx,W,H,elapsed,warState);drawCutIn();drawCrosshair();drawLargeMap();if(window.PostFX)window.PostFX.render(postOptions());}
+  function render(){if(window.PostFX&&shake>7)window.PostFX.aberrate(Math.min(.011,(shake-6)*.0008),.25);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#0c1114';ctx.fillRect(0,0,W,H);drawWorld();drawAtmosphere();drawLightBloom();if(warState.active&&window.WarScene)window.WarScene.drawScreen(ctx,W,H,elapsed,warState);drawCutIn();if(window.GameFeel)window.GameFeel.overlay(ctx,W,H);drawCrosshair();drawLargeMap();if(window.PostFX)window.PostFX.render(postOptions());}
 
   function loop(now){
     if(!running){loopActive=false;frameStats.loops=0;return;}
     // A frame timestamp can predate `last` when a match was just (re)started: never let time run backwards.
     const frameMs=Math.max(0,now-last), dt=Math.min(.033,frameMs/1000||0);last=now;
     const updateStarted=performance.now();
-    if((coop()&&!net.over)||(!paused&&!largeMap)){try{update(dt);}catch(error){player=me;console.error(error);}}
+    // Anime style (anime-vfx.js): heavy blows freeze the world for a moment (hit-stop); never in co-op.
+    // Shake is compared with the end of the previous frame: jutsu released from key/mouse handlers count too.
+    const GF=window.GameFeel,shake0=loop.shake||0;
+    if((coop()&&!net.over)||(!paused&&!largeMap)){try{update(GF?GF.dt(dt,coop()||(team.active&&!team.ctrl)):dt);}catch(error){player=me;console.error(error);}}
+    if(GF)GF.after(shake-shake0,dt,coop()||(team.active&&!team.ctrl));
+    loop.shake=shake;
     sampleUpdateMs+=performance.now()-updateStarted;
     const renderStarted=performance.now();render();
     sampleFrames++;sampleRenderMs+=performance.now()-renderStarted;
@@ -4313,9 +4332,11 @@
   // summons; guests send the damage they deal to the host, and everyone shares
   // a picture of their ninja about 20 times a second so teammates can see it.
   // ---------------------------------------------------------------------------
-  const ENEMY_KINDS = ['walker', 'runner', 'brute', 'spitter', 'boss', 'beast'];
+  // Every unit type by index (team battles field village ninja, Zetsu and more, not just the horde).
+  const ENEMY_KINDS = Object.keys(ZOMBIE_TYPES);
+  const SNAP_STRIDE = 16;
   const ENEMY_SKILLS = ['', 'dash', 'stomp', 'bossPulse', 'shuriken', 'fire', 'fan'];
-  const NET_SKIP_KEYS = new Set(['target', 'stuckTo', 'hitIds', 'player', 'hand', 'elapsed', 'startedAt', 'netProxy']);
+  const NET_SKIP_KEYS = new Set(['target', 'stuckTo', 'hitIds', 'player', 'hand', 'elapsed', 'startedAt', 'netProxy', 'foe', 'cursorT', 'idleTarget']);
   const localNinja = { p: me, sk: skillState, pc: purpleChidoriState, mg: mightGuyState, hk: hokageState, rn: rinneganState, by: baryonState, sp: sixPathsState, ix: indraState, su: susanooState, kc: kuramaState,
     local: true, firing: false, color: COOP_COLORS[0], name: '' };
   const ninjaList = [localNinja];
@@ -4436,6 +4457,7 @@
   }
 
   function applyPeerState(from, msg) {
+    if (msg.gone) { const gone = net.peers.get(from); if (gone) gone.view = null; return; }
     if (msg.i) applyImpacts(msg.i);
     const peer = ensurePeer(from);
     let view = peer.view;
@@ -4490,11 +4512,18 @@
       flat.push(z.id, ENEMY_KINDS.indexOf(z.type), Math.round(z.x), Math.round(z.y), Math.round((z.angle || 0) * 100),
         Math.round(z.health), Math.round(z.maxHealth), Math.round(z.skillWindup * 100), Math.max(0, ENEMY_SKILLS.indexOf(z.skillKind)),
         Math.round((z.dashAngle || 0) * 100), z.attackTimer > swing - .2 ? 1 : 0, Math.round((z.rootTimer || 0) * 10),
-        Math.round((z.soakedTimer || 0) * 10), Math.round(Math.max(0, z.deathTimer) * 100));
+        Math.round((z.soakedTimer || 0) * 10), Math.round(Math.max(0, z.deathTimer) * 100), z.team ?? -1, z.roster ? 1 : 0);
     }
     for (const b of bullets) if (!b.friendly) hostile.push(b);
+    let tm;
+    if (team.active) {
+      const c = {};
+      if (team.ctrl && team.ctrl !== me) c[net.id] = team.ctrl.id;
+      for (const peer of net.peers.values()) if (peer.tunit) c[peer.id] = peer.tunit.id;
+      tm = { t: team.teams.map(t => [t.name, t.color, t.kills, t.alive]), o: team.over ? team.winner ?? -1 : null, c, el: elapsed };
+    }
     window.CoopNet.send(netJSON({ t: 'snap', w: [waveState.number, waveState.total, waveState.spawned, waveState.intermission],
-      boss: waveState.boss?.id || 0, sc: me.score, k: me.kills, gt: gameTime, z: flat, g: giants, hb: hostile, fx: effects }));
+      boss: waveState.boss?.id || 0, sc: me.score, k: me.kills, gt: gameTime, z: flat, g: giants, hb: hostile, fx: effects, tm }));
   }
 
   function setProxyHealth(z, health) {
@@ -4508,7 +4537,7 @@
 
   function applySnapshot(msg) {
     const seq = ++net.snapSeq, f = msg.z;
-    for (let i = 0; i < f.length; i += 14) {
+    for (let i = 0; i < f.length; i += SNAP_STRIDE) {
       const id = f[i], type = ENEMY_KINDS[f[i + 1]] || 'walker';
       let z = net.proxies.get(id);
       if (!z) {
@@ -4521,6 +4550,7 @@
       z.skillWindup = f[i + 7] / 100; z.skillKind = ENEMY_SKILLS[f[i + 8]] || ''; z.dashAngle = f[i + 9] / 100;
       if (f[i + 10]) z.attackTimer = type === 'runner' ? .7 : 1;
       z.rootTimer = f[i + 11] / 10; z.soakedTimer = f[i + 12] / 10; z.deathTimer = f[i + 13] / 100;
+      z.team = f[i + 14] >= 0 ? f[i + 14] : undefined; z.roster = !!f[i + 15];
       z.seq = seq;
     }
     for (const g of msg.g) {
@@ -4548,6 +4578,7 @@
     me.score = msg.sc; me.kills = msg.k; gameTime = msg.gt;
     net.hostile = msg.hb || [];
     net.fx = msg.fx || [];
+    if (msg.tm) applyTeamSnap(msg.tm);
   }
 
   // Guests animate the host's enemies between snapshots.
@@ -4573,14 +4604,17 @@
     net.sendTimer -= dt;
     if (net.sendTimer <= 0) {
       net.sendTimer = .05;
-      sendPlayerState();
-      if (net.role === 'client') flushHits();
+      // Team battle: guests send their keys and cursor; the host's Naruto is shown only while he fights.
+      if (team.active && net.role === 'client') sendTeamInput();
+      else if (team.active && !heroTargetable()) window.CoopNet.send({ t: 'p', gone: 1 });
+      else sendPlayerState();
+      if (net.role === 'client' && !team.active) flushHits();
     }
     if (net.role !== 'host') return;
     net.snapTimer -= dt;
-    if (net.snapTimer <= 0) { net.snapTimer = 1 / 15; sendSnapshot(); }
+    if (net.snapTimer <= 0) { net.snapTimer = team.active ? 1 / 12 : 1 / 15; sendSnapshot(); }
     // The run is lost only when the whole team is down at the same time.
-    if (!net.over && me.down > 0 && [...net.peers.values()].every(peer => !peer.view || peer.view.p.down > 0)) {
+    if (!team.active && !net.over && me.down > 0 && [...net.peers.values()].every(peer => !peer.view || peer.view.p.down > 0)) {
       net.over = true;
       netSend({ t: 'over' });
       gameOver();
@@ -4703,7 +4737,10 @@
 
   function onNetMessage(msg) {
     switch (msg.t) {
-      case 'start': if (window.CoopNet.state.role === 'client') startAsGuest(msg); break;
+      case 'start': if (window.CoopNet.state.role === 'client') { if (team.active) { team.active = false; team.ctrl = null; ui.hud.classList.remove('team-mode', 'team-unit', 'team-watch'); setTeamLabels(false); } startAsGuest(msg); } break;
+      case 'tstart': if (window.CoopNet.state.role === 'client') startTeamAsGuest(msg); break;
+      case 'ti': if (running && net.role === 'host' && team.active) { const peer = net.peers.get(msg.from); if (peer) peer.tin = { k: msg.k | 0, l: msg.l ? 1 : 0, r: msg.r ? 1 : 0, x: +msg.x || 0, y: +msg.y || 0 }; } break;
+      case 'tc': if (running && net.role === 'host' && team.active) onTeamCommand(net.peers.get(msg.from), msg); break;
       case 'p': if (running && coop()) applyPeerState(msg.from, msg); break;
       case 'snap': if (running && net.role === 'client') applySnapshot(msg); break;
       case 'hits': if (running && net.role === 'host') applyRemoteHits(msg.from, msg.h); break;
@@ -4723,11 +4760,12 @@
         if (!coop()) break;
         syncPeers();
         showToast(`${msg.name} ĐÃ VÀO PHÒNG`, 1.6);
-        if (net.role === 'host' && running) netSend({ t: 'start', to: msg.id, ...startPayload() });
+        if (net.role === 'host' && running) netSend(team.active ? { t: 'tstart', to: msg.id, ...teamStartPayload() } : { t: 'start', to: msg.id, ...startPayload() });
         break;
       case 'peer-leave':
         if (!coop()) break;
         showToast(`${peerName(msg.id)} ĐÃ RỜI PHÒNG`, 1.6);
+        { const gone = net.peers.get(msg.id); if (gone?.tunit) releaseUnit(gone.tunit); }
         net.peers.delete(msg.id);
         syncPeers();
         break;
@@ -4735,7 +4773,70 @@
     }
   }
   if (window.CoopNet) window.CoopNet.on(onNetMessage);
-  window.ShinobiGame = { hostStart };
+  // Co-op team setup, before any match: the host's setup screen shows who sits in which team and
+  // broadcasts it; guests pick a team on their lobby screen.
+  // Guest: the host opened (or changed) the team setup — show the same screen here, where this player
+  // joins a team and picks its units. Closing it returns to the lobby, with a button to reopen it.
+  let lastSetup = null, guestLeftSetup = false;
+  function guestSetupHooks() {
+    return { myId: window.CoopNet.state.id,
+      onEdit: op => window.CoopNet.send({ t: 'tedit', to: 'host', ...op }),
+      onPick: i => window.CoopNet.send({ t: 'tpick', to: 'host', team: i }),
+      onClose: () => { guestLeftSetup = true; document.getElementById('lobbyScreen')?.classList.add('visible'); if (lastSetup) renderLobbyTeams(lastSetup); } };
+  }
+  function onGuestSetup(msg) {
+    const lobby = document.getElementById('lobbyScreen');
+    if (msg.closed) {
+      lastSetup = null; guestLeftSetup = false;
+      if (window.TeamMode?.guestOpen()) window.TeamMode.hideAll();
+      const box = document.getElementById('lobbyTeams'); if (box) box.hidden = true;
+      if (!running && window.CoopNet.state.role === 'client') lobby?.classList.add('visible');
+      return;
+    }
+    lastSetup = msg;
+    if (running) return;
+    if (guestLeftSetup) { renderLobbyTeams(msg); return; }
+    lobby?.classList.remove('visible');
+    window.TeamMode?.openGuestSetup(msg, guestSetupHooks());
+  }
+  function renderLobbyTeams(msg) {
+    const box = document.getElementById('lobbyTeams');
+    if (!box || !Array.isArray(msg.teams)) return;
+    const myId = window.CoopNet.state.id, seats = msg.seats || {}, mine = seats[myId] ?? -1;
+    const names = id => window.CoopNet.nameOf(+id);
+    box.hidden = false;
+    const head = document.createElement('div'); head.className = 'lobby-teams-head';
+    head.textContent = 'CHỦ PHÒNG ĐANG XẾP ĐỘI · CHỌN ĐỘI CỦA BẠN (CÓ THỂ CHUNG ĐỘI)';
+    const grid = document.createElement('div'); grid.className = 'team-pick-grid';
+    msg.teams.forEach((t, i) => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'team-pick-btn' + (mine === i ? ' on' : '');
+      b.style.setProperty('--team', t.color);
+      const name = document.createElement('strong'); name.textContent = t.name;
+      const info = document.createElement('span');
+      const who = Object.keys(seats).filter(id => seats[id] === i).map(names);
+      info.textContent = `${t.count} nhân vật` + (who.length ? ` · ${who.join(', ')}` : '');
+      b.append(name, info);
+      b.addEventListener('click', () => window.CoopNet.send({ t: 'tpick', to: 'host', team: mine === i ? -1 : i }));
+      grid.append(b);
+    });
+    const watch = document.createElement('button'); watch.type = 'button'; watch.className = 'coop-btn team-pick-watch';
+    watch.textContent = mine >= 0 ? 'BỎ CHỌN (CHỌN SAU KHI VÀO TRẬN)' : 'CHƯA CHỌN · CHỌN SAU KHI VÀO TRẬN';
+    watch.addEventListener('click', () => window.CoopNet.send({ t: 'tpick', to: 'host', team: -1 }));
+    const reopen = document.createElement('button'); reopen.type = 'button'; reopen.className = 'coop-btn team-pick-watch';
+    reopen.textContent = 'MỞ MÀN XẾP ĐỘI · CHỌN NHÂN VẬT';
+    reopen.addEventListener('click', () => { guestLeftSetup = false; document.getElementById('lobbyScreen')?.classList.remove('visible'); window.TeamMode?.openGuestSetup(lastSetup || msg, guestSetupHooks()); });
+    box.replaceChildren(head, grid, reopen, watch);
+  }
+  if (window.CoopNet) window.CoopNet.on(msg => {
+    const st = window.CoopNet.state;
+    if (msg.t === 'tsetup' && st.role === 'client') onGuestSetup(msg);
+    else if (msg.t === 'tpick' && st.role === 'host' && !running) window.TeamMode?.seat(msg.from, msg.team);
+    else if (msg.t === 'tedit' && st.role === 'host' && !running) window.TeamMode?.guestEdit(msg.from, msg);
+    else if ((msg.t === 'peer-join' || msg.t === 'peer-leave') && st.role === 'host' && !running) window.TeamMode?.refreshRoom();
+    else if (msg.t === 'tstart' || msg.t === 'start' || msg.t === 'host-left' || msg.t === 'left') { const box = document.getElementById('lobbyTeams'); if (box) box.hidden = true; lastSetup = null; guestLeftSetup = false; if (msg.t !== 'tstart' && msg.t !== 'start') window.TeamMode?.hideAll(); }
+  });
+  window.ShinobiGame = { hostStart, teamSetup: openTeamSetup };
 
   // ---------------------------------------------------------------------------
   // Fourth Great Ninja War (toggle in the spawn panel): the battlefield south of the Suna–Kiri road,
@@ -4955,7 +5056,8 @@
   }
 
   // ---- Shunshin dash ("lướt"): a short burst along a line with afterimages and dust; walls stop it.
-  const TEAM_DASH = { len: 340, giantLen: 230, speed: 1700, ctrlCd: 1.6 };
+  // ctrlCd: the cooldown of a player's right-click dash (AI dashes keep their own timers).
+  const TEAM_DASH = { len: 340, giantLen: 230, speed: 1700, ctrlCd: 5 };
   const dashTrails = [];
   function startDash(u, angle, len) {
     if (u.shun || !(u.health > 0)) return false;
@@ -5088,24 +5190,45 @@
   }
   // Right click: the driven unit (or Naruto) dashes toward the cursor. No cooldown: a click mid-dash turns it
   // toward the cursor again, and holding the button chains dash after dash.
+  // A player's dash toward a point; then it recharges for TEAM_DASH.ctrlCd seconds (u.pdashAt).
+  function dashToward(u, wx, wy) {
+    if (!u || !(u === me ? heroTargetable() : u.health > 0) || (u !== me && u.kageDash > 0)) return;
+    if (elapsed < (u.pdashAt || 0) || u.shun) return;
+    if (!startDash(u, Math.atan2(wy - u.y, wx - u.x))) return;
+    u.pdashAt = elapsed + TEAM_DASH.ctrlCd;
+    if (u === me) me.invuln = Math.max(me.invuln, .2);
+  }
   function teamDash() {
     const u = team.ctrl;
-    if (!u || !(u === me ? heroTargetable() : u.health > 0) || paused || largeMap) return;
-    if (u !== me && u.kageDash > 0) return;
-    const angle = Math.atan2(mouse.y + camera.y - u.y, mouse.x + camera.x - u.x);
-    u.shun = null;
-    // Only a fresh dash (not a chain) gives Naruto his short dodge invulnerability.
-    if (startDash(u, angle) && u === me && !(elapsed - (team.lastDash || -9) < 1)) me.invuln = Math.max(me.invuln, .2);
-    team.lastDash = elapsed;
+    if (!u || paused || largeMap) return;
+    // A guest's dash runs on the host.
+    if (net.role === 'client') { netSend({ t: 'tc', to: 'host', a: 'dash', x: Math.round(mouse.x + camera.x), y: Math.round(mouse.y + camera.y) }); return; }
+    dashToward(u, mouse.x + camera.x, mouse.y + camera.y);
   }
   function teamHeldDash() {
     const u = team.ctrl;
-    if (mouse.right && u && !u.shun && running && !paused && !largeMap) teamDash();
+    if (net.role !== 'client' && mouse.right && u && !u.shun && running && !paused && !largeMap) teamDash();
+    if (net.role !== 'host' || !team.active) return;
+    for (const peer of net.peers.values()) {
+      const pu = peer.tunit, i = peer.tin;
+      if (pu && i && i.r && pu.health > 0 && !pu.shun) dashToward(pu, i.x, i.y);
+    }
   }
   // Team battle moves everyone faster than village defence (giants a little less).
   const hugeUnit = u => u.type === 'beast' || (u.r || 0) > 50;
   const teamSpeed = u => !team.active ? 1 : u !== me && hugeUnit(u) ? 1.3 : 1.45;
-  function cursorPseudo() { cursorTarget.x = mouse.x + camera.x; cursorTarget.y = mouse.y + camera.y; return cursorTarget; }
+  // Co-op team battle: a unit driven by a guest reads that guest's last input packet instead of this keyboard.
+  // k: W=1 A=2 S=4 D=8 · l/r: mouse buttons · x/y: the guest's cursor in the world.
+  const coopTeam = () => team.active && coop();
+  function remoteInput(z) {
+    if (!z.ctrlBy || z.ctrlBy === net.id || !team.active) return null;
+    return net.peers.get(z.ctrlBy)?.tin || { k: 0, l: 0, r: 0, x: z.x + Math.cos(z.angle || 0) * 40, y: z.y + Math.sin(z.angle || 0) * 40 };
+  }
+  function cursorPseudo(z) {
+    const rin = z && remoteInput(z);
+    if (rin) { const t = z.cursorT || (z.cursorT = { x: 0, y: 0, r: 18, health: 1, maxHealth: 1, pseudo: true }); t.x = rin.x; t.y = rin.y; return t; }
+    cursorTarget.x = mouse.x + camera.x; cursorTarget.y = mouse.y + camera.y; return cursorTarget;
+  }
   // With no foe left a unit faces where it stands instead of chasing anything.
   function idlePseudo(z) {
     const t = z.idleTarget || (z.idleTarget = { x: 0, y: 0, r: 1, health: 1, maxHealth: 1, pseudo: true });
@@ -5210,9 +5333,9 @@
   // WASD walks the driven unit at its own speed; left click is a basic blow (or the grunt's thrown weapon) at the cursor.
   function updateManualUnit(z, dt, spec, damage) {
     z.sigLabelTimer = Math.max(0, (z.sigLabelTimer || 0) - dt);
-    const input = !paused && !largeMap;
-    const dx = input ? (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) : 0;
-    const dy = input ? (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) : 0;
+    const rin = remoteInput(z), input = rin ? true : !paused && !largeMap;
+    const dx = rin ? (rin.k & 8 ? 1 : 0) - (rin.k & 2 ? 1 : 0) : input ? (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) : 0;
+    const dy = rin ? (rin.k & 4 ? 1 : 0) - (rin.k & 1 ? 1 : 0) : input ? (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) : 0;
     let speed = spec.speed * (z.type === 'boss' ? 1.35 : 1) * teamSpeed(z);
     if (z.rootTimer > 0) { z.rootTimer = Math.max(0, z.rootTimer - dt); speed *= z.type === 'boss' ? .5 : .14; }
     if (z.soakedTimer > 0) { z.soakedTimer = Math.max(0, z.soakedTimer - dt); speed *= .65; }
@@ -5228,7 +5351,7 @@
     }
     z.manualMoving = moving;
     z.manualAtk = (z.manualAtk || 0) - dt;
-    if (input && mouse.down && z.manualAtk <= 0 && !z.manualBusy && !(z.skillWindup > 0)) comboStep(z, spec, damage);
+    if (input && (rin ? rin.l : mouse.down) && z.manualAtk <= 0 && !z.manualBusy && !(z.skillWindup > 0)) comboStep(z, spec, damage);
     if (z.gruntCast != null) {
       const i = z.gruntCast, sigs = gruntSigs(spec, z.type);
       z.gruntCast = null;
@@ -5301,28 +5424,37 @@
   }
 
   // Everyone the user can drive, team by team (Naruto first in his team).
-  function controllables() {
-    const list = [];
+  // forPeer: a guest (host side) — that guest's team, Naruto excluded (he is the host's own ninja).
+  function controllables(forPeer) {
+    const list = [], side = coopTeam() ? (forPeer ? forPeer.tteam : team.myTeam) : null, owner = forPeer ? forPeer.id : net.id;
     for (let i = 0; i < team.teams.length; i++) {
-      if (heroTargetable() && me.team === i) list.push(me);
-      for (const z of zombies) if (z.team === i && z.health > 0) list.push(z);
+      if (side !== null && i !== side) continue;
+      if (!forPeer && heroTargetable() && me.team === i) list.push(me);
+      for (const z of zombies) if (z.team === i && z.health > 0 && (side === null || !z.ctrlBy || z.ctrlBy === owner)) list.push(z);
     }
     return list;
   }
+  function releaseUnit(u) {
+    if (!u || u === me) return;
+    u.manual = false; u.ctrlBy = 0; u.manualCast = null; u.manualPending = null; u.gruntCast = null; u.manualMoving = false;
+  }
   function setControl(t) {
     if (!team.active) return;
+    // A guest asks the host; the host's next snapshot says what it drives now.
+    if (net.role === 'client') { netSend({ t: 'tc', to: 'host', a: t ? 'pick' : 'watch', id: t ? t.id : 0 }); if (!t) guestCtrl(null); return; }
     const old = team.ctrl;
     if (old === t) return;
-    if (old && old !== me) { old.manual = false; old.manualCast = null; old.manualPending = null; old.gruntCast = null; old.manualMoving = false; }
+    if (old && old !== me) releaseUnit(old);
     team.ctrl = t || null;
     if (t) team.spectate = false;
-    if (t && t !== me) { t.manual = true; t.manualCast = null; t.manualPending = null; t.movesCache = unitMoves(t); }
+    if (t && t !== me) { t.manual = true; t.ctrlBy = net.id; t.manualCast = null; t.manualPending = null; t.movesCache = unitMoves(t); }
     if (t !== me) { cancelCharge(); cancelPurpleChidoriCharge(); }
     team.heroAI.seek = 0;
     ui.hud.classList.toggle('team-unit', !!t && t !== me);
     team.portraitKey = null; hudTimer = 0;
   }
   function cycleControl(dir) {
+    if (net.role === 'client') { netSend({ t: 'tc', to: 'host', a: 'tab', d: dir }); return; }
     const list = controllables();
     if (!list.length) return;
     const i = list.indexOf(team.ctrl);
@@ -5345,15 +5477,110 @@
     if (z) setControl(z);
   }
 
+  // Host: give every guest a unit of the team they picked (a new one when theirs falls).
+  function peerControl(peer, unit) {
+    if (peer.tunit && peer.tunit !== unit) releaseUnit(peer.tunit);
+    peer.tunit = unit || null;
+    if (unit) { unit.manual = true; unit.ctrlBy = peer.id; unit.manualCast = null; unit.manualPending = null; unit.movesCache = unitMoves(unit); }
+  }
+  function updatePeerUnits() {
+    for (const peer of net.peers.values()) {
+      const u = peer.tunit;
+      if (!(peer.tteam >= 0) || peer.twatch) { if (u) peerControl(peer, null); continue; }
+      if (!u || !(u.health > 0) || u.team !== peer.tteam || u.ctrlBy !== peer.id) peerControl(peer, controllables(peer)[0] || null);
+    }
+  }
+  function onTeamCommand(peer, msg) {
+    if (!peer) return;
+    if (msg.a === 'team') { peer.tteam = Number.isInteger(msg.team) && team.teams[msg.team] ? msg.team : -1; peer.twatch = false; peerControl(peer, null); updatePeerUnits(); return; }
+    if (msg.a === 'watch') { peer.twatch = true; peerControl(peer, null); return; }
+    const list = controllables(peer);
+    if (msg.a === 'pick') { const u = list.find(z => z.id === msg.id); if (u) { peer.twatch = false; peerControl(peer, u); } return; }
+    if (msg.a === 'tab' && list.length) { const i = list.indexOf(peer.tunit); peer.twatch = false; peerControl(peer, list[((i < 0 ? (msg.d > 0 ? -1 : 0) : i) + (msg.d > 0 ? 1 : -1) + list.length) % list.length]); return; }
+    if (msg.a === 'dash' && peer.tunit && Number.isFinite(msg.x) && Number.isFinite(msg.y)) dashToward(peer.tunit, msg.x, msg.y);
+  }
+  // Pick (or switch) your team: the host drives at once, a guest asks the host.
+  function chooseTeam(i) {
+    if (!team.active) return;
+    team.myTeam = team.teams[i] ? i : -1;
+    hudTimer = 0;
+    if (net.role === 'client') { netSend({ t: 'tc', to: 'host', a: 'team', team: team.myTeam }); if (team.myTeam < 0) guestCtrl(null); return; }
+    if (team.ctrl && team.ctrl.team !== team.myTeam && team.ctrl !== me) setControl(null);
+    if (team.ctrl === me && me.team !== team.myTeam) setControl(null);
+    const list = controllables();
+    if (list.length) setControl(list[0]); else { setControl(null); team.spectate = team.myTeam < 0; }
+  }
+  function openTeamPicker() {
+    if (!window.TeamMode?.pickTeam) return;
+    const counts = team.teams.map(() => 0);
+    if (net.role !== 'client') for (const peer of net.peers.values()) if (peer.tteam >= 0) counts[peer.tteam]++;
+    if (team.myTeam >= 0) counts[team.myTeam]++;
+    window.TeamMode.pickTeam({ teams: team.teams.map((t, i) => ({ name: t.name, color: t.color, alive: t.alive, players: counts[i] })), current: team.myTeam }, chooseTeam);
+  }
+  // Guest: the unit the host says this player drives (a proxy), or none.
+  function guestCtrl(z) {
+    team.ctrl = z || null;
+    team.spectate = !z;
+    if (!z) { const f = camFocus(); team.cam.x = f.x; team.cam.y = f.y; }
+    ui.hud.classList.toggle('team-unit', !!z);
+    team.portraitKey = null; hudTimer = 0;
+  }
+  function sendTeamInput() {
+    const on = running && !paused && !largeMap && !!team.ctrl;
+    const k = on ? (keys.KeyW ? 1 : 0) | (keys.KeyA ? 2 : 0) | (keys.KeyS ? 4 : 0) | (keys.KeyD ? 8 : 0) : 0;
+    netSend({ t: 'ti', to: 'host', k, l: on && mouse.down ? 1 : 0, r: on && mouse.right ? 1 : 0, x: Math.round(mouse.x + camera.x), y: Math.round(mouse.y + camera.y) });
+  }
+  function teamStartPayload() {
+    return { teams: team.teams.map(t => ({ name: t.name, color: t.color, spawn: t.spawn })), seats: team.seats || {}, ...startPayload() };
+  }
+  // Guest: the host started (or restarted) a team battle.
+  function startTeamAsGuest(msg) {
+    window.TeamMode?.hideAll();
+    startAsGuest(msg);
+    team.active = true; team.over = false; team.winner = undefined; team.startedAt = elapsed; team.portraitKey = null;
+    team.teams = (msg.teams || []).map((t, i) => ({ id: i, name: String(t.name || `ĐỘI ${i + 1}`).slice(0, 18), color: t.color || TEAM_COLORS[i], spawn: t.spawn || { x: 0, y: 0 }, kills: 0, alive: 0, units: [] }));
+    team.heroTeam = -1; team.myTeam = -1; team.ctrl = null; me.team = undefined; me.teamOut = true;
+    team.spectate = true; team.follow = true; team.hot = null; team.hotTimer = 0; dashTrails.length = 0;
+    team.cam.x = team.teams.reduce((a, t) => a + t.spawn.x, 0) / Math.max(1, team.teams.length);
+    team.cam.y = team.teams.reduce((a, t) => a + t.spawn.y, 0) / Math.max(1, team.teams.length);
+    setTeamLabels(true);
+    ui.hud.classList.add('team-mode');
+    document.getElementById('coopPanel').hidden = true;
+    team.myTeam = msg.seats && msg.seats[net.id] >= 0 && team.teams[msg.seats[net.id]] ? msg.seats[net.id] : -1;
+    if (team.myTeam >= 0) team.spectate = false;
+    updateHUD();
+    if (team.myTeam < 0) openTeamPicker();
+  }
+  // Guest: team scores, the match result and which unit each player drives, from the host's snapshot.
+  function applyTeamSnap(tm) {
+    if (!team.active) return;
+    tm.t.forEach((row, i) => {
+      const t = team.teams[i] || (team.teams[i] = { id: i, kills: 0, alive: 0, units: [], spawn: { x: 0, y: 0 } });
+      t.name = row[0]; t.color = row[1]; t.kills = row[2]; t.alive = row[3]; t.units.length = 0;
+    });
+    for (const z of zombies) if (z.roster && team.teams[z.team]) team.teams[z.team].units.push(z);
+    elapsed = tm.el;
+    const own = tm.c && tm.c[net.id] !== undefined ? net.proxies.get(tm.c[net.id]) || null : null;
+    if (own !== team.ctrl && (own || !team.spectate || team.ctrl)) guestCtrl(own);
+    if (tm.o !== null && tm.o !== undefined && !team.over) {
+      team.over = true;
+      const w = team.teams[tm.o];
+      window.TeamMode?.showResult({ winner: w ? { name: w.name, color: w.color } : null, teams: team.teams.map(t => ({ name: t.name, color: t.color, kills: t.kills, alive: t.alive })) });
+    }
+  }
+
   function updateTeamMatch(dt) {
     for (let i = dashTrails.length - 1; i >= 0; i--) if ((dashTrails[i].life -= dt) <= 0) dashTrails.splice(i, 1);
     if (!team.ctrl) updateSpectator(dt);
+    // A guest only watches the host's match: no scoring, no unit switching here.
+    if (net.role === 'client') return;
+    if (net.role === 'host') updatePeerUnits();
     // The driven unit fell: take another of the same team, else anyone still standing.
     const c = team.ctrl;
     if (c && (c === me ? !heroTargetable() : !(c.health > 0))) {
       const side = c === me ? me.team : c.team, list = controllables();
       setControl(list.find(u => u.team === side) || list[0] || null);
-    } else if (!c && !team.spectate && !spawnQueue.length) { const list = controllables(); if (list.length) setControl(list[0]); }
+    } else if (!c && !team.spectate && !spawnQueue.length && (!coopTeam() || team.myTeam >= 0)) { const list = controllables(); if (list.length) setControl(list[0]); }
     team.checkTimer -= dt;
     if (team.checkTimer > 0 || team.over) return;
     team.checkTimer = .25;
@@ -5365,6 +5592,7 @@
     if (elapsed - team.startedAt > 1.5 && standing.length <= 1) endTeamMatch(standing[0] ? standing[0].id : -1);
   }
   function endTeamMatch(winner) {
+    team.winner = winner;
     team.over = true; paused = true; mouse.down = false;
     cancelCharge(); cancelPurpleChidoriCharge();
     updateHUD();
@@ -5469,11 +5697,11 @@
     const mine = c ? team.teams[c.team] : null;
     setText(ui.kills, mine ? `${mine.name} · ${mine.kills} HẠ GỤC` : 'ĐẤU ĐỘI');
     setText(ui.score, 'TAB · ĐỔI NHÂN VẬT');
-    setText(ui.eventText, !c
+    setText(ui.eventText, (coop() ? 'J chọn đội · ' : '') + (!c
       ? 'Chỉ xem: WASD/mũi tên hoặc kéo chuột để di chuyển camera (Shift nhanh hơn) · F tự theo trận đánh · bấm bản đồ nhỏ / M để tới đó · Tab hoặc chuột phải vào ai để nhập vai · N thêm quân'
       : unit
-      ? 'WASD đi · chuột trái tung chiêu liên hoàn · chuột phải lướt (giữ để lướt liên tục) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân'
-      : 'Naruto (đủ phím) · chuột phải lướt (giữ để lướt liên tục) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân');
+      ? 'WASD đi · chuột trái tung chiêu liên hoàn · chuột phải lướt (hồi 5 giây) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân'
+      : 'Naruto (đủ phím) · chuột phải lướt (hồi 5 giây) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân').replace(net.role === 'client' ? ' · N thêm quân' : '#', ''));
     ui.bossBar.classList.remove('active');
     if (!window.TeamMode) return;
     window.TeamMode.board(team.teams.map(t => ({ name: t.name, color: t.color, alive: t.alive, kills: t.kills,
@@ -5482,7 +5710,7 @@
         dead: u === me ? me.teamOut : !(u.health > 0), ctrl: u === c })) })));
     if (!unit) { window.TeamMode.moves(null); return; }
     const list = unit.movesCache || (unit.movesCache = unitMoves(unit)), cd = unit.moveCd || [];
-    window.TeamMode.moves({ id: unit.id, name: unitName(unit), color, busy: !!unit.manualBusy, next: (unit.comboIdx || 0) % Math.max(1, list.length), dash: { left: 0, ratio: 0 },
+    window.TeamMode.moves({ id: unit.id, name: unitName(unit), color, busy: !!unit.manualBusy, next: (unit.comboIdx || 0) % Math.max(1, list.length), dash: { left: Math.max(0, (unit.pdashAt || 0) - elapsed), ratio: Math.max(0, (unit.pdashAt || 0) - elapsed) / TEAM_DASH.ctrlCd },
       moves: list.map((m, i) => { const left = Math.max(0, (cd[i] || 0) - elapsed); return { label: m.label, left, ratio: left / moveCooldown(unit, i) }; }) });
   }
 
@@ -5513,18 +5741,22 @@
     return item.type === 'naruto' ? { type: 'boss', faction: 'naruto', id: 'naruto' } : { type: item.type, faction: item.faction, id: item.id };
   }
   function startTeamMatch(setup) {
-    if (window.CoopNet?.state && window.CoopNet.state.role !== 'solo') return false;
+    const hosting = window.CoopNet?.state?.role === 'host';
+    if (window.CoopNet?.state && window.CoopNet.state.role !== 'solo' && !hosting) return false;
     if (!setup?.teams?.length) return false;
     team.setup = setup;
     window.TeamMode?.hideAll();
-    setRole('solo'); resetGame();
+    setRole(hosting ? 'host' : 'solo'); resetGame();
+    team.winner = undefined; team.myTeam = -1;
     team.active = true; team.over = false; team.startedAt = elapsed; team.checkTimer = 1; team.portraitKey = null;
     setTeamLabels(true);
     Object.assign(team.heroAI, { foe: null, seek: 0, rasengan: 1, shuriken: 2.5, fire: 1.5, clones: 4 });
     team.teams = setup.teams.map((t, i) => ({ id: i, name: String(t.name || `ĐỘI ${i + 1}`).slice(0, 18), color: t.color || TEAM_COLORS[i],
       spawn: validSpot(t.spawn?.x ?? 0, t.spawn?.y ?? 0), kills: 0, alive: 0, units: [] }));
     // The first Naruto picked is you; any further Naruto is an AI unit.
-    team.heroTeam = setup.teams.findIndex(t => (t.members || []).some(m => m.type === 'naruto'));
+    // Co-op: the host's own Naruto only in the team the host sits in (other Narutos are AI units).
+    const hasNaruto = t => (t?.members || []).some(m => m.type === 'naruto'), hostSeat = hosting ? setup.seats?.[window.CoopNet.state.id] : undefined;
+    team.heroTeam = hosting ? (hostSeat >= 0 && hasNaruto(setup.teams[hostSeat]) ? hostSeat : -1) : setup.teams.findIndex(hasNaruto);
     curTeam = team.heroTeam;
     const sprites = new Set();
     let heroTaken = false;
@@ -5545,7 +5777,18 @@
     team.spectate = watch; team.follow = watch; team.hot = null; team.hotTimer = 0; team.drag = null; dashTrails.length = 0;
     team.cam.x = team.teams.reduce((s, t) => s + t.spawn.x, 0) / team.teams.length;
     team.cam.y = team.teams.reduce((s, t) => s + t.spawn.y, 0) / team.teams.length;
-    if (team.heroTeam >= 0 && !watch) setControl(me);
+    if (team.heroTeam >= 0 && !watch && !hosting) setControl(me);
+    // Co-op: every player (the host too) picks a team first; guests get the match from the host.
+    if (hosting) {
+      team.spectate = true; team.follow = true;
+      const seats = setup.seats || {};
+      team.seats = seats;
+      for (const peer of net.peers.values()) { peer.tteam = seats[peer.id] ?? -1; peer.tunit = null; peer.tin = null; peer.twatch = false; }
+      document.getElementById('coopPanel').hidden = true;
+      netSend({ t: 'tstart', ...teamStartPayload() });
+      // Seated on the setup screen: straight into your team; otherwise pick now.
+      if (seats[net.id] >= 0) chooseTeam(seats[net.id]); else setTimeout(openTeamPicker, 0);
+    }
     if (window.AnimeSprites?.prewarm) window.AnimeSprites.prewarm([...sprites].filter(id => window.AnimeSprites.has(id)).slice(0, 24));
     running = true; paused = false; largeMap = false;
     ui.hud.classList.remove('map-open', 'hidden'); ui.hud.classList.add('team-mode');
@@ -5590,9 +5833,10 @@
     paintPortrait();
   }
   function openTeamSetup() {
-    if (window.CoopNet?.state && window.CoopNet.state.role !== 'solo') {
+    const role = window.CoopNet?.state?.role;
+    if (role && role !== 'solo' && role !== 'host') {
       const error = document.getElementById('coopError');
-      if (error) error.textContent = 'Đấu Đội chỉ chơi đơn: hãy rời phòng co-op trước.';
+      if (error) error.textContent = 'Chỉ chủ phòng mới mở được Đấu Đội.';
       return;
     }
     window.TeamMode?.openSetup();
@@ -5605,9 +5849,15 @@
     defaultSpawns, validSpot,
     start: startTeamMatch,
     add: addTeamUnits,
+    room: () => {
+      const st = window.CoopNet?.state;
+      if (!st || st.role !== 'host') return null;
+      return { players: st.players.map(p => ({ id: p.id, name: p.name, color: COOP_COLORS[p.slot] || COOP_COLORS[0], me: p.id === st.id })) };
+    },
+    roomChanged: summary => window.CoopNet?.send({ t: 'tsetup', ...summary }),
     resume: () => { if (running && team.active && !team.over) { paused = false; last = performance.now(); } },
-    replay: () => startTeamMatch(team.setup),
-    toSetup: () => { teamToTitle(); openTeamSetup(); },
+    replay: () => { if (net.role === 'client') showToast('CHỜ CHỦ PHÒNG BẮT ĐẦU TRẬN MỚI', 1.6); else startTeamMatch(team.setup); },
+    toSetup: () => { if (net.role === 'client') showToast('CHỈ CHỦ PHÒNG MỚI ĐỔI ĐỘI HÌNH', 1.6); else { teamToTitle(); openTeamSetup(); } },
     toTitle: teamToTitle,
     control: controlById
   });
@@ -5802,6 +6052,7 @@
       if(e.code==='Tab'){e.preventDefault();if(!e.repeat)cycleControl(e.shiftKey?-1:1);return;}
       // Backspace: let go and spectate · F while spectating: follow the biggest fight.
       if(e.code==='Backspace'){e.preventDefault();if(!e.repeat&&team.ctrl)spectate();return;}
+      if(e.code==='KeyJ'&&coop()){if(!e.repeat)openTeamPicker();return;}
       if(e.code==='KeyF'&&!team.ctrl){if(!e.repeat){team.follow=!team.follow;team.hotTimer=0;showToast(team.follow?'CAMERA: TỰ THEO TRẬN ĐÁNH LỚN NHẤT':'CAMERA: TỰ DO',1.2);hudTimer=0;}return;}
     }
     const canAct=running&&!paused&&!largeMap&&!(me.down>0)&&!teamUnit;
@@ -5824,7 +6075,7 @@
       player.weapon='susano';player.fireCooldown=0;updateHUD();showToast('ĐÃ TRANG BỊ SONG KIẾM SUSANO');
     }
     if(e.code==='KeyP'&&!e.repeat&&window.PostFX&&window.PostFX.available){window.PostFX.setEnabled(!window.PostFX.enabled);showToast(window.PostFX.enabled?'ĐỒ HOẠ WEBGL: BẬT (PHÁT SÁNG, SÓNG XUNG KÍCH)':'ĐỒ HOẠ WEBGL: TẮT');}
-    if(e.code==='KeyN'&&!e.repeat&&running&&!paused&&!net.over){if(team.active)openTeamAdd();else openSpawnPanel();e.preventDefault();return;}
+    if(e.code==='KeyN'&&!e.repeat&&running&&!paused&&!net.over){if(team.active){if(net.role==='client')showToast('CHỈ CHỦ PHÒNG MỚI THÊM QUÂN ĐƯỢC',1.4);else openTeamAdd();}else openSpawnPanel();e.preventDefault();return;}
     if(e.code==='KeyM'&&running&&!paused){largeMap=!largeMap;ui.hud.classList.toggle('map-open',largeMap);if(largeMap){cancelCharge();cancelPurpleChidoriCharge();}}
     if(e.code==='KeyR'&&running&&!e.repeat){if(team.active)teamToTitle();else restart();}
     if(e.code==='Escape'&&running&&!largeMap){paused=!paused;ui.pause.classList.toggle('visible',paused);if(paused){cancelCharge();cancelPurpleChidoriCharge();}}

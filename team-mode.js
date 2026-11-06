@@ -65,7 +65,39 @@
   }
 
   // ------------------------------------------------------------ storage
+  // ------------------------------------------------------------ co-op room seats (host's setup screen)
+  // Each player in the room sits in one team (several may share a team) or none (-1: picks in the match).
+  const seats = new Map();
+  // Guest mode: a co-op guest sees the host's setup (kept in step by the host) and may only add or
+  // remove units in the team it sits in; every edit goes to the host, which sends the new setup back.
+  let guest = null;   // { myId, players, onEdit(op), onPick(team), onClose() }
+  function roomPlayers() {
+    if (guest) return guest.players;
+    const r = host.room ? host.room() : null;
+    return r && r.players && r.players.length > 1 ? r.players : null;
+  }
+  function roomSummary() {
+    const out = {};
+    for (const [id, i] of seats) if (i >= 0) out[id] = i;
+    return { teams: setup.teams.map(t => ({ name: t.name, color: t.color, spawn: t.spawn, members: t.members.map(m => m.key) })), seats: out,
+      players: (roomPlayers() || []).map(p => ({ id: p.id, name: p.name, color: p.color })) };
+  }
+  function roomChanged() { if (!guest && host && roomPlayers() && $('teamScreen')?.classList.contains('visible')) host.roomChanged?.(roomSummary()); }
+  function seat(id, i) {
+    if (guest) { guest.onPick(i); return; }
+    seats.set(id, Number.isInteger(i) && i >= 0 && i < setup.teams.length ? i : -1);
+    if ($('teamScreen')?.classList.contains('visible')) { renderModes(); renderList(); }
+    roomChanged();
+  }
+  function refreshRoom() {
+    const players = roomPlayers();
+    if (players) for (const id of [...seats.keys()]) if (!players.some(p => p.id === id)) seats.delete(id);
+    if ($('teamScreen')?.classList.contains('visible')) { renderModes(); renderList(); }
+    roomChanged();
+  }
   function save() {
+    if (guest) return;
+    roomChanged();
     try {
       localStorage.setItem(STORE, JSON.stringify({ sel: setup.sel, mode: setup.mode, teams: setup.teams.map(t => ({ name: t.name, spawn: t.spawn, members: t.members.map(m => m.key) })) }));
     } catch (error) { /* private mode: setup simply isn't remembered */ }
@@ -94,6 +126,7 @@
     setup.sel = 0;
   }
   function setTeamCount(n) {
+    if (guest) return;
     n = Math.max(2, Math.min(host.maxTeams, n));
     if (n === setup.teams.length) return;
     if (n < setup.teams.length) setup.teams.length = n;
@@ -102,6 +135,7 @@
       for (let i = setup.teams.length; i < n; i++) setup.teams.push({ name: `ĐỘI ${i + 1}`, color: host.colors[i], spawn: spots[i], members: [] });
     }
     setup.sel = Math.min(setup.sel, n - 1);
+    for (const [id, i] of seats) if (i >= n) seats.set(id, -1);
     save(); renderSetup();
   }
 
@@ -199,7 +233,7 @@
     ui.map.setAttribute('aria-label', 'Bản đồ thế giới: bấm để đặt điểm xuất phát của đội đang chọn');
     ui.map.addEventListener('click', e => {
       const t = setup.teams[setup.sel];
-      if (!t) return;
+      if (!t || guest) return;
       const p = mapPoint(ui.map, e);
       t.spawn = host.validSpot(p.x, p.y);
       save(); drawSetupMap();
@@ -219,6 +253,13 @@
     buildCatalog(ui.cat, (item, b) => {
       const t = setup.teams[setup.sel];
       if (!t) return;
+      if (guest) {
+        const mine = seats.get(guest.myId);
+        if (!(mine >= 0)) { setStatus('Vào một đội trước (nút "TÔI VÀO ĐỘI NÀY").', true); return; }
+        if (mine !== setup.sel) { select(mine); }
+        if (setup.teams[mine].members.length >= host.maxPerTeam) { setStatus(`${setup.teams[mine].name} đã đủ ${host.maxPerTeam} nhân vật.`, true); return; }
+        guest.onEdit({ op: 'add', team: mine, key: item.key }); flash(b); return;
+      }
       if (t.members.length >= host.maxPerTeam) { setStatus(`${t.name} đã đủ ${host.maxPerTeam} nhân vật.`, true); flash(ui.list.children[setup.sel] || b); return; }
       t.members.push(item);
       flash(b);
@@ -241,6 +282,7 @@
     ui.built = true;
   }
   function preset(kind) {
+    if (guest) return;
     const spots = host.defaultSpawns(setup.teams.length, kind);
     setup.teams.forEach((t, i) => { t.spawn = spots[i]; });
     save(); drawSetupMap();
@@ -251,6 +293,7 @@
     ui.status.classList.toggle('warn', !!warn);
   }
   function summary() {
+    if (guest) return;
     const filled = setup.teams.filter(t => t.members.length);
     const total = filled.reduce((n, t) => n + t.members.length, 0);
     setStatus(filled.length >= 2 ? `${filled.length} đội · ${total} nhân vật sẵn sàng` : 'Cần ít nhất 2 đội có nhân vật', filled.length < 2);
@@ -268,18 +311,38 @@
       const badge = el('span', 'team-badge', String(i + 1));
       const name = el('input', 'team-name');
       name.value = t.name; name.maxLength = 18; name.setAttribute('aria-label', `Tên đội ${i + 1}`);
+      name.readOnly = !!guest;
       name.addEventListener('click', e => { e.stopPropagation(); select(i, true); });
       name.addEventListener('input', () => { t.name = name.value.toUpperCase().slice(0, 18) || `ĐỘI ${i + 1}`; save(); if (i === setup.sel) renderCatTitle(); });
       head.append(badge, name, el('span', 'team-row-count', `${t.members.length}/${host.maxPerTeam}`));
       const members = el('div', 'team-members');
       if (!t.members.length) members.append(el('span', 'team-empty', i === setup.sel ? 'Chọn nhân vật ở danh sách bên cạnh' : 'Chưa có nhân vật'));
       t.members.forEach((m, j) => {
-        const chip = button('team-chip', '', e => { e.stopPropagation(); t.members.splice(j, 1); save(); renderList(); }, `Bỏ ${m.name} khỏi ${t.name}`);
+        const chip = button('team-chip', '', e => {
+          e.stopPropagation();
+          if (guest) { if (seats.get(guest.myId) === i) guest.onEdit({ op: 'remove', team: i, idx: j, key: m.key }); else setStatus('Bạn chỉ sửa được đội của mình.', true); return; }
+          t.members.splice(j, 1); save(); renderList();
+        }, `Bỏ ${m.name} khỏi ${t.name}`);
         chip.title = `${m.name} · bấm để bỏ`;
         chip.append(thumb(m, 30, 'team-chip-thumb'), el('span', 'team-chip-name', m.name), el('span', 'team-chip-x', '✕'));
         members.append(chip);
       });
       row.append(head, members);
+      // Co-op: who plays this team, and a button for you to join it.
+      const players = roomPlayers();
+      if (players) {
+        const bar = el('div', 'team-seats');
+        for (const p of players) if (seats.get(p.id) === i) {
+          const tag = el('span', 'team-seat', p.name + (p.me ? ' (BẠN)' : ''));
+          tag.style.setProperty('--slot', p.color);
+          bar.append(tag);
+        }
+        const me = players.find(p => p.me);
+        if (me) bar.append(seats.get(me.id) === i
+          ? button('team-seat-join', 'RỜI ĐỘI', e => { e.stopPropagation(); seat(me.id, -1); }, `Rời ${t.name}`)
+          : button('team-seat-join', '＋ TÔI VÀO ĐỘI NÀY', e => { e.stopPropagation(); seat(me.id, i); }, `Vào ${t.name}`));
+        row.append(bar);
+      }
       return row;
     }));
     ui.count.textContent = String(setup.teams.length);
@@ -307,12 +370,26 @@
   function drawSetupMap() { drawWorldMap(ui.map, setup.teams, setup.sel, null, null); }
   function renderModes() {
     for (const b of ui.modeBtns) { const on = b.dataset.mode === setup.mode; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
+    if (guest) {
+      const mine = seats.get(guest.myId);
+      ui.note.textContent = mine >= 0 ? `Bạn ở ${setup.teams[mine]?.name || ''}: bấm nhân vật bên phải để thêm vào đội, bấm vào nhân vật trong đội để bỏ. Chủ phòng bấm BẮT ĐẦU khi mọi người sẵn sàng.`
+        : 'Bấm "＋ TÔI VÀO ĐỘI NÀY" trên một thẻ đội (có thể chung đội với người khác), rồi chọn nhân vật cho đội của bạn.';
+      return;
+    }
+    const players = roomPlayers();
+    if (players) {
+      const free = players.filter(p => !(seats.get(p.id) >= 0)).map(p => p.name);
+      ui.note.textContent = `Phòng co-op ${players.length} người: mỗi người chọn một đội (có thể chung đội). Bạn bấm "TÔI VÀO ĐỘI NÀY" trên thẻ đội; bạn bè chọn ngay trên màn chờ của họ. `
+        + (free.length ? `Chưa chọn: ${free.join(', ')} (sẽ được hỏi khi vào trận).` : 'Mọi người đã chọn đội.') + ' Mỗi người điều khiển nhân vật của đội mình; Naruto thuộc về chủ phòng.';
+      return;
+    }
     ui.note.textContent = setup.mode === 'watch'
       ? 'Chỉ xem: bạn không điều khiển ai, camera tự do (WASD, kéo chuột, F tự theo trận đánh). Có thể bấm Tab hoặc chuột phải vào nhân vật để nhập vai bất cứ lúc nào.'
-      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (giữ để lướt liên tục), Backspace chuyển sang chỉ xem.`;
+      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (hồi 5 giây), Backspace chuyển sang chỉ xem.`;
   }
   function renderSetup() { renderModes(); renderList(); drawSetupMap(); }
   function openSetup() {
+    setTimeout(roomChanged, 0);
     if (!host) return;
     loadCatalog();
     if (!setup.teams.length && !load()) defaults();
@@ -322,12 +399,55 @@
     renderSetup();
     requestAnimationFrame(drawSetupMap);
   }
-  function closeSetup() { $('teamScreen').classList.remove('visible'); }
+  function closeSetup() {
+    $('teamScreen').classList.remove('visible');
+    if (guest) { const g = guest; guest = null; $('teamSetup')?.classList.remove('guest'); g.onClose(); return; }
+    if (roomPlayers()) host.roomChanged?.({ closed: true });
+  }
+  // Guest: show (or refresh) the host's setup. data: the host's room summary.
+  function applyRemote(data) {
+    setup.teams = (data.teams || []).map((t, i) => ({ name: t.name, color: t.color || host.colors[i], spawn: t.spawn || null,
+      members: (t.members || []).map(k => byKey.get(k)).filter(Boolean) }));
+    setup.sel = Math.min(Math.max(0, setup.sel), Math.max(0, setup.teams.length - 1));
+    seats.clear();
+    for (const id in data.seats || {}) seats.set(+id, data.seats[id]);
+  }
+  function openGuestSetup(data, hooks) {
+    if (!host) return;
+    loadCatalog();
+    if (!ui.built) buildSetup();
+    const first = !guest;
+    if (first) hideAll();   // closes other team screens (and clears any stale guest state)
+    guest = { ...hooks, players: (data.players || []).map(p => ({ ...p, me: p.id === hooks.myId })) };
+    applyRemote(data);
+    if (first) { const mine = seats.get(hooks.myId); if (mine >= 0) setup.sel = mine; }
+    $('teamSetup')?.classList.add('guest');
+    $('teamScreen').classList.add('visible');
+    renderSetup();
+    setStatus('Chờ chủ phòng bấm BẮT ĐẦU', false);
+    if (first) requestAnimationFrame(drawSetupMap);
+  }
+  function guestOpen() { return !!guest && $('teamScreen')?.classList.contains('visible'); }
+  // Host: a guest's add / remove, allowed only inside the team that guest sits in.
+  function guestEdit(id, op) {
+    if (guest || !op || seats.get(id) !== op.team) return;
+    const t = setup.teams[op.team];
+    if (!t) return;
+    if (op.op === 'add') { const item = byKey.get(op.key); if (!item || t.members.length >= host.maxPerTeam) return; t.members.push(item); }
+    else if (op.op === 'remove') { const j = t.members[op.idx]?.key === op.key ? op.idx : t.members.findIndex(m => m.key === op.key); if (j < 0) return; t.members.splice(j, 1); }
+    else return;
+    save();
+    if ($('teamScreen')?.classList.contains('visible')) renderList();
+  }
   function startMatch() {
+    if (guest) return;
     const teams = setup.teams.filter(t => t.members.length);
     if (teams.length < 2) { setStatus('Cần ít nhất 2 đội có nhân vật để bắt đầu.', true); return; }
     save();
-    const ok = host.start({ mode: setup.mode, teams: teams.map(t => ({ name: t.name, color: t.color, spawn: t.spawn, members: t.members.slice() })) });
+    // Seats point at setup teams; the match only keeps the teams that have units.
+    const seatsOut = {};
+    for (const [id, i] of seats) { const k = teams.indexOf(setup.teams[i]); if (i >= 0 && k >= 0) seatsOut[id] = k; }
+    const ok = host.start({ mode: setup.mode, seats: seatsOut, teams: teams.map(t => ({ name: t.name, color: t.color, spawn: t.spawn, members: t.members.slice() })) });
     if (ok === false) setStatus('Không thể bắt đầu (đang ở phòng co-op?).', true);
   }
 
@@ -543,8 +663,42 @@
 
   // ------------------------------------------------------------ public
   const screens = ['teamScreen', 'teamAddScreen', 'teamResultScreen'];
-  function hideAll() { for (const id of screens) $(id)?.classList.remove('visible'); }
-  function isOpen() { return screens.some(id => $(id)?.classList.contains('visible')); }
+  function hideAll() { for (const id of screens) $(id)?.classList.remove('visible'); if (pick.root) pick.root.hidden = true; if (guest) { guest = null; $('teamSetup')?.classList.remove('guest'); } }
+  function isOpen() { return screens.some(id => $(id)?.classList.contains('visible')) || !!(pick.root && !pick.root.hidden); }
+  // Co-op team battle: each player picks the team they will drive (or just watches). data: { teams:
+  // [{ name, color, alive, players }], current }; onPick(index), -1 = watch only. J reopens it in game.
+  const pick = { root: null };
+  function pickTeam(data, onPick) {
+    if (!pick.root) {
+      pick.root = el('div', 'team-pick');
+      pick.root.setAttribute('role', 'dialog');
+      pick.root.setAttribute('aria-label', 'Chọn đội');
+      document.body.append(pick.root);
+      pick.root.addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Escape') { pick.root.hidden = true; pick.done?.(-1); } });
+    }
+    const root = pick.root;
+    pick.done = i => { root.hidden = true; onPick(i); };
+    root.replaceChildren();
+    const card = el('div', 'team-pick-card');
+    card.append(el('div', 'jp-caption', '陣営'), el('div', 'eyebrow', 'ĐẤU ĐỘI · CO-OP'), el('h2', 'team-pick-title', 'CHỌN ĐỘI CỦA BẠN'),
+      el('p', 'team-pick-note', 'Bạn điều khiển nhân vật của đội đã chọn: Tab đổi nhân vật, chuột trái tung chiêu, chuột phải lướt. Bấm J trong trận để đổi đội.'));
+    const grid = el('div', 'team-pick-grid');
+    data.teams.forEach((t, i) => {
+      const b = el('button', 'team-pick-btn' + (i === data.current ? ' on' : ''));
+      b.type = 'button';
+      b.style.setProperty('--team', t.color);
+      b.append(el('strong', '', t.name), el('span', '', `${t.alive || 0} nhân vật · ${t.players || 0} người chơi`));
+      b.addEventListener('click', () => pick.done(i));
+      grid.append(b);
+    });
+    const watch = el('button', 'coop-btn team-pick-watch', 'CHỈ XEM');
+    watch.type = 'button';
+    watch.addEventListener('click', () => pick.done(-1));
+    card.append(grid, watch);
+    root.append(card);
+    root.hidden = false;
+    (grid.querySelector('.on') || grid.firstChild)?.focus();
+  }
   function init(h) {
     host = h;
     // The result screen must not leak keys into the paused match (Enter replays).
@@ -562,5 +716,5 @@
       if ($('teamAddScreen')?.classList.contains('visible') && au.map) drawAddMap();
     });
   }
-  window.TeamMode = { init, openSetup, openAdd, showResult, hideAll, isOpen, board: renderBoard, moves: renderMoves };
+  window.TeamMode = { init, openSetup, openAdd, showResult, hideAll, isOpen, board: renderBoard, moves: renderMoves, pickTeam, seat, refreshRoom, openGuestSetup, guestOpen, guestEdit };
 })();

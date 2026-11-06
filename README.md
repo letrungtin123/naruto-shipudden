@@ -17,7 +17,17 @@ Chế độ co-op cần chạy server bằng **Node.js** (`start.bat`). Python v
 1. Người làm chủ phòng chạy `start.bat`. Cửa sổ PowerShell sẽ in thêm các địa chỉ LAN, ví dụ `http://192.168.1.20:8080`. Nếu Windows Firewall hỏi, hãy cho phép Node.js truy cập mạng riêng (Private).
 2. Ở màn hình đầu, nhập tên ninja rồi bấm **TẠO PHÒNG**. Phòng chờ hiện mã 4 chữ cái và các địa chỉ để gửi cho bạn bè.
 3. Bạn bè cùng mạng Wi-Fi/LAN mở địa chỉ đó trên máy mình, nhập tên và mã phòng, rồi bấm **VÀO PHÒNG**. Mỗi phòng tối đa 4 người.
-4. Chủ phòng bấm **BẮT ĐẦU**. Người vào sau khi trận đã bắt đầu sẽ nhảy thẳng vào trận đang diễn ra.
+4. Chủ phòng bấm **BẮT ĐẦU** để chơi Bảo Vệ Làng cùng nhau, hoặc **ĐẤU ĐỘI · CHỌN ĐỘI HÌNH** để chơi Đấu Đội (xem dưới). Người vào sau khi trận đã bắt đầu sẽ nhảy thẳng vào trận đang diễn ra.
+
+**Đấu Đội co-op** (tối đa 4 người):
+
+- Chủ phòng bấm **ĐẤU ĐỘI · CHỌN ĐỘI HÌNH** trong phòng chờ, xếp các đội như Đấu Đội thường rồi bấm BẮT ĐẦU.
+- **Mọi người cùng xếp đội**: khi chủ phòng mở màn TẠO ĐỘI, màn đó cũng hiện trên máy bạn bè. Mỗi người bấm **＋ TÔI VÀO ĐỘI NÀY** trên một thẻ đội (nhiều người chung đội được), rồi bấm nhân vật bên phải để thêm vào đội của mình, bấm vào nhân vật trong đội để bỏ. Khách chỉ sửa được đội mình đang ở; số đội, tên đội, cờ xuất phát và nút BẮT ĐẦU do chủ phòng quyết. Khách đóng màn này thì quay về phòng chờ, có nút mở lại.
+- Nhiều người cùng một đội thì đánh chung; khác đội thì đấu với nhau. Naruto do chủ phòng điều khiển chỉ nằm ở đội chủ phòng đã vào; Naruto ở đội khác do máy điều khiển.
+- Ai chưa chọn thì khi vào trận sẽ hiện bảng **CHỌN ĐỘI** (hoặc **CHỈ XEM**).
+- Mỗi người điều khiển một nhân vật của đội mình, cách bấm như Đấu Đội: WASD đi, chuột trái tung chiêu liên hoàn, chuột phải lướt, `Tab` đổi sang nhân vật khác của đội (không lấy được nhân vật người khác đang điều khiển). Nhân vật gục thì bạn tự sang nhân vật khác còn sống của đội. `J` mở lại bảng chọn đội, `Backspace` chỉ xem.
+- Naruto chỉ chủ phòng điều khiển được. Chỉ chủ phòng thêm quân (`N`) và bắt đầu lại trận.
+- Máy chủ phòng chạy toàn bộ trận; máy khách gửi phím và chuột lên, nên mạng chậm thì nhân vật của khách phản hồi trễ một chút.
 
 Trong trận co-op:
 
@@ -229,7 +239,7 @@ Tắt công tắc để kết thúc đại chiến.
 
 ## Đấu Đội
 
-Ở màn hình đầu, bấm **ĐẤU ĐỘI** (cạnh **BẢO VỆ LÀNG NINJA**) để mở màn tạo đội. Chế độ này chỉ chơi đơn: đang ở phòng co-op thì phải rời phòng trước.
+Ở màn hình đầu, bấm **ĐẤU ĐỘI** (cạnh **BẢO VỆ LÀNG NINJA**) để mở màn tạo đội. Muốn chơi Đấu Đội cùng bạn bè, xem phần **Đấu Đội co-op** ở mục Co-op.
 
 **Tạo đội**
 
@@ -245,7 +255,7 @@ Tắt công tắc để kết thúc đại chiến.
 - Mỗi nhân vật đứng trên một vòng màu của đội mình, có thanh máu cùng màu. Các nhân vật tự rời điểm xuất phát, đi tìm đội khác gần nhất và đánh nhau. Đòn của một đội không trúng người cùng đội.
 - Naruto đầu tiên được chọn (ở bất kỳ đội nào) là bạn, với đầy đủ phím và nhẫn thuật như chế độ thường, máu gốc 12.000. Những Naruto chọn thêm là Naruto do máy điều khiển. Nếu không chọn Naruto nào, bạn chỉ đứng xem và điều khiển các nhân vật khác.
 - **Điều khiển bất kỳ ai**: `Tab` / `Shift+Tab` chuyển sang nhân vật kế tiếp / trước đó (mọi đội). Khi đang chỉ xem, chuột phải vào một nhân vật; hoặc bấm ảnh của nhân vật trong bảng đội ở góc phải, hoặc bấm vào nhân vật trên bản đồ lớn (`M`) để điều khiển nhân vật đó. Camera đi theo nhân vật bạn đang điều khiển. Nhân vật đó có vòng trắng nhấp nháy và mũi tên trên đầu.
-- **Chuột phải** để lướt về phía con trỏ, **không có thời gian hồi**: bấm liên tục để lướt liên tục (bấm giữa chừng thì đổi hướng theo con trỏ), giữ chuột phải để lướt nối tiếp không dừng. Lướt được cả khi nhân vật đang dở chiêu. Dùng được cho mọi nhân vật, kể cả Naruto. Trong Đấu Đội, `Shift` không còn dùng để lướt hay chạy nhanh, và chuột phải của Naruto là lướt thay cho Chidori tím.
+- **Chuột phải** để lướt về phía con trỏ, **hồi 5 giây** (ô LƯỚT trên thanh chiêu đếm ngược). Lướt được cả khi nhân vật đang dở chiêu. Dùng được cho mọi nhân vật, kể cả Naruto. Trong Đấu Đội, `Shift` không còn dùng để lướt hay chạy nhanh, và chuột phải của Naruto là lướt thay cho Chidori tím.
 - Khi điều khiển boss, Vĩ Thú hay ninja: `W A S D` để đi, **chuột trái tung chiêu liên hoàn** về phía con trỏ, giống chế độ Lục Đạo (`I`) của Naruto: mỗi lần bấm (hoặc giữ chuột) là tung chiêu kế tiếp theo thứ tự 1 → 2 → 3 → … rồi quay vòng lại. Chiêu nào đang hồi thì bỏ qua, nếu không chiêu nào sẵn sàng thì đánh thường. Mỗi chiêu hồi 1,5 giây; chiêu cuối (tuyệt chiêu) hồi 12 giây. Thanh chiêu ở dưới màn hình hiện tên chiêu, thời gian hồi, và viền sáng ở chiêu sẽ ra tiếp theo. Không cần bấm phím số nữa. Ninja thường dùng các nhẫn thuật riêng của mình.
 - **Chỉ xem**: `W A S D` hoặc phím mũi tên để di chuyển camera (giữ `Shift` để nhanh hơn), kéo chuột trái để kéo camera, bấm vào bản đồ nhỏ hoặc bản đồ lớn (`M`) để đưa camera tới đó, `F` để bật/tắt camera tự theo trận đánh lớn nhất. Bấm `Tab` hoặc chuột phải vào một nhân vật để nhập vai bất cứ lúc nào (lúc đang điều khiển thì chuột phải là lướt, đổi nhân vật bằng `Tab` hoặc bảng đội). Đang điều khiển ai đó thì bấm `Backspace` để thả ra và chuyển sang chỉ xem (cũng dùng được khi đã chọn ĐIỀU KHIỂN NHÂN VẬT).
 - Khi bạn điều khiển nhân vật khác (hoặc đang chỉ xem), máy tự điều khiển Naruto: lao vào địch gần nhất, đánh bằng trượng, tung Rasengan, Rasen Shuriken và hỏa cầu.
@@ -257,6 +267,8 @@ Tắt công tắc để kết thúc đại chiến.
 - Khi chỉ còn một đội có người đứng, màn kết quả hiện đội thắng và số lần hạ gục của từng đội. Bấm **CHƠI LẠI** để đánh lại với đội vừa tạo, **VỀ MÀN TẠO ĐỘI** để sửa đội, hoặc **MÀN HÌNH CHÍNH**. Phím `R` trong trận đưa bạn về màn hình chính.
 
 ## Điều khiển
+
+- Con trỏ chuột là tâm ngắm to có viền đen, đổi màu theo vũ khí/chế độ (trắng khi đang bấm giữ chuột trái).
 
 - `W A S D`: di chuyển
 - `Shift`: chạy nhanh
@@ -283,8 +295,11 @@ Tắt công tắc để kết thúc đại chiến.
 - `N`: mở bảng tạo kẻ địch (Đấu Đội: thêm quân)
 - `Tab` / `Shift+Tab` (Đấu Đội): đổi nhân vật đang điều khiển; khi chỉ xem, chuột phải vào một nhân vật để điều khiển nhân vật đó
 - Chuột trái (Đấu Đội, khi điều khiển boss, Vĩ Thú hay ninja): tung lần lượt từng chiêu về phía con trỏ, như chế độ Lục Đạo
-- Chuột phải (Đấu Đội): lướt về phía con trỏ, không hồi chiêu, giữ để lướt liên tục · `Backspace`: thả nhân vật, chuyển sang chỉ xem · `F` (khi chỉ xem): camera tự theo trận đánh
+- Chuột phải (Đấu Đội): lướt về phía con trỏ, hồi 5 giây · `Backspace`: thả nhân vật, chuyển sang chỉ xem · `F` (khi chỉ xem): camera tự theo trận đánh
 - `M`: mở bản đồ lớn của thế giới; bấm vào bản đồ để dịch chuyển
 - `P`: bật / tắt đồ hoạ WebGL (phát sáng, sóng xung kích)
+- `L`: đổi **kiểu đồ hoạ (bản thử)**, lần lượt: Gốc → Pixel art → Anime. Lựa chọn được nhớ cho lần sau.
+  - **Pixel art**: Naruto, Sasuke, Rasengan và Chidori được vẽ lại trên lưới pixel; nhân vật và chiêu khác giữ kiểu vẽ cũ.
+  - **Anime**: Rasengan, Rasen Shuriken, Chidori và Vĩ Thú Ngọc vẽ kiểu cel anime (mảng màu phẳng, viền mực, nét cọ thuôn nhọn, ngôi sao xung kích). Thêm "cảm giác đòn" cho mọi chiêu: đòn nặng làm cả thế giới khựng lại 50–90 ms, đòn rất mạnh có 2 khung hình đảo màu (tối đa 3 giây một lần) và đường tốc độ dồn vào giữa màn hình. Không áp dụng trong co-op và khi đang chỉ xem Đấu Đội.
 - `Esc`: tạm dừng / tiếp tục
 - `R`: chơi lại (Đấu Đội: về màn hình chính)

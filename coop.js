@@ -90,6 +90,7 @@
     }
     const isHost = state.role === 'host';
     $('lobbyStart').hidden = !isHost;
+    if ($('lobbyTeam')) $('lobbyTeam').hidden = !isHost;
     $('lobbyWaiting').hidden = isHost;
   }
 
@@ -147,7 +148,7 @@
     if (msg.t === 'created' || msg.t === 'joined') openLobby();
     else if (msg.t === 'peer-join' || msg.t === 'peer-leave') renderLobby();
     else if (msg.t === 'error') showError(msg.text);
-    else if (msg.t === 'start') closeLobby();
+    else if (msg.t === 'start' || msg.t === 'tstart') closeLobby();
     else if (msg.t === 'host-left' || msg.t === 'left') {
       if ($('lobbyScreen').classList.contains('visible')) {
         closeLobby();
@@ -171,6 +172,8 @@
     });
     // The server doesn't echo 'start' back to the host, so close the host's lobby here.
     $('lobbyStart')?.addEventListener('click', () => { closeLobby(); window.ShinobiGame?.hostStart(); });
+    // Team battle for the room: the host builds the teams, then every player picks one.
+    $('lobbyTeam')?.addEventListener('click', () => { closeLobby(); window.ShinobiGame?.teamSetup(); });
   });
 
   window.CoopNet = {

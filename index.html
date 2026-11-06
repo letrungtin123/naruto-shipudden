@@ -102,7 +102,7 @@
               <div><kbd>N</kbd><span>Mở bảng tạo kẻ địch · Đấu Đội: thêm quân cho một đội</span></div>
               <div class="team-control"><kbd>TAB</kbd><span>Đấu Đội: đổi nhân vật đang điều khiển (Shift+Tab lùi lại) · khi chỉ xem, chuột phải vào nhân vật để nhập vai</span></div>
               <div class="team-control"><kbd>CHUỘT TRÁI</kbd><span>Đấu Đội: khi điều khiển boss, vĩ thú hay ninja: WASD đi, bấm hoặc giữ chuột trái để tung lần lượt từng chiêu về phía con trỏ (như chế độ Lục Đạo)</span></div>
-              <div class="team-control"><kbd>CHUỘT PHẢI</kbd><span>Đấu Đội: lướt (thuấn thân) về phía con trỏ, không hồi chiêu, giữ để lướt liên tục · Backspace: thả nhân vật, chuyển sang chỉ xem</span></div>
+              <div class="team-control"><kbd>CHUỘT PHẢI</kbd><span>Đấu Đội: lướt (thuấn thân) về phía con trỏ, hồi 5 giây · Backspace: thả nhân vật, chuyển sang chỉ xem</span></div>
               <div class="team-control"><kbd>F</kbd><span>Đấu Đội · chỉ xem: camera tự theo trận đánh lớn nhất · WASD / kéo chuột / bấm bản đồ nhỏ để di chuyển camera</span></div>
               <div><kbd>M</kbd><span>Bản đồ lớn</span></div>
               <div><kbd>P</kbd><span>Bật/tắt đồ hoạ WebGL: phát sáng, sóng xung kích, tách màu</span></div>
@@ -123,10 +123,12 @@
         <p class="lobby-hint">Bạn bè mở một trong các địa chỉ dưới đây (cùng mạng Wi-Fi/LAN), nhập mã phòng rồi bấm <strong>VÀO PHÒNG</strong>:</p>
         <div id="lobbyLinks" class="lobby-links"></div>
         <ol id="lobbyPlayers" class="lobby-players"></ol>
+        <div id="lobbyTeams" class="lobby-teams" hidden></div>
         <button id="lobbyStart" class="headband" type="button" hidden>
           <span class="plate-leaf" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#konohaLeaf" /></svg></span>
           <span class="headband-label">BẮT ĐẦU</span>
         </button>
+        <button id="lobbyTeam" class="coop-btn lobby-team" type="button" hidden>ĐẤU ĐỘI · CHỌN ĐỘI HÌNH</button>
         <p id="lobbyWaiting" class="lobby-hint" hidden>Đang chờ chủ phòng bắt đầu…</p>
         <button id="lobbyLeave" class="coop-btn lobby-leave" type="button">RỜI PHÒNG</button>
       </div>
@@ -358,6 +360,8 @@
   <script src="team-mode.js"></script>
   <script src="coop.js"></script>
   <script src="postfx.js"></script>
+  <script src="pixel-art.js"></script>
+  <script src="anime-vfx.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

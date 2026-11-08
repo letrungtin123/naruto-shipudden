@@ -536,14 +536,34 @@
     h.id = 'teamResultTitle';
     if (data.winner) h.style.color = data.winner.color;
     root.append(h);
-    const table = el('div', 'team-result-table');
-    table.append(el('span', 'th', 'ĐỘI'), el('span', 'th', 'HẠ GỤC'), el('span', 'th', 'CÒN LẠI'));
+    // Each team: name, kills, standing count, then every unit's portrait and name (fallen ones greyed).
+    const list = el('div', 'team-result-list');
     for (const t of [...data.teams].sort((a, b) => b.alive - a.alive || b.kills - a.kills)) {
-      const name = el('span', 'team-result-name', t.name);
-      name.style.setProperty('--team', t.color);
-      table.append(name, el('span', '', String(t.kills)), el('span', '', String(t.alive)));
+      const units = t.units || [], up = units.filter(u => !u.dead).length;
+      const card = el('section', 'team-result-team' + (data.winner && t.name === data.winner.name ? ' won' : '') + (up ? '' : ' out'));
+      card.style.setProperty('--team', t.color);
+      const head = el('div', 'team-result-head');
+      head.append(el('span', 'team-result-name', t.name),
+        el('span', 'team-result-stat', `còn ${up}/${units.length || t.alive} · hạ ${t.kills}`));
+      const grid = el('div', 'team-result-units');
+      for (const u of units) {
+        const cell = el('div', 'team-result-unit' + (u.dead ? ' dead' : ''));
+        cell.title = u.name + (u.dead ? ' · đã gục' : ' · còn sống');
+        const pic = el('div', 'team-result-pic');
+        pic.append(thumb({ sprite: u.sprite, tails: u.tails, tone: t.color }, 44, 'team-result-thumb'));
+        if (u.dead) pic.append(el('span', 'team-result-x', '✕'));
+        const info = el('div', 'team-result-info');
+        info.append(el('span', 'team-result-uname', u.name.split(' — ')[0]),
+          el('span', 'team-result-state', u.dead ? 'ĐÃ GỤC' : u.you ? 'BẠN · CÒN SỐNG' : 'CÒN SỐNG'));
+        if (!u.dead) { const hp = el('span', 'team-result-hp'), fill = el('i'); fill.style.width = `${Math.round((u.hp ?? 1) * 100)}%`; hp.append(fill); info.append(hp); }
+        cell.append(pic, info);
+        grid.append(cell);
+      }
+      if (!units.length) grid.append(el('span', 'team-empty', 'Không có nhân vật'));
+      card.append(head, grid);
+      list.append(card);
     }
-    root.append(table);
+    root.append(list);
     const again = button('headband', '', () => host.replay());
     again.append(el('span', 'headband-label', 'CHƠI LẠI'));
     const row = el('div', 'team-result-actions');

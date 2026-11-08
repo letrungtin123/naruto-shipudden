@@ -4598,7 +4598,8 @@
       const c = {};
       if (team.ctrl && team.ctrl !== me) c[net.id] = team.ctrl.id;
       for (const peer of net.peers.values()) if (peer.tunit) c[peer.id] = peer.tunit.id;
-      tm = { t: team.teams.map(t => [t.name, t.color, t.kills, t.alive]), o: team.over ? team.winner ?? -1 : null, c, el: elapsed };
+      tm = { t: team.teams.map(t => [t.name, t.color, t.kills, t.alive]), o: team.over ? team.winner ?? -1 : null, c, el: elapsed,
+        n: team.heroTeam >= 0 ? [team.heroTeam, heroTargetable() ? 1 : 0, +clamp(me.health / me.maxHealth, 0, 1).toFixed(2)] : null };
     }
     window.CoopNet.send(netJSON({ t: 'snap', w: [waveState.number, waveState.total, waveState.spawned, waveState.intermission],
       boss: waveState.boss?.id || 0, sc: me.score, k: me.kills, gt: gameTime, z: flat, g: giants, hb: hostile, fx: effects, tm }));
@@ -5735,6 +5736,7 @@
     window.TeamMode?.hideAll();
     startAsGuest(msg);
     team.active = true; team.over = false; team.winner = undefined; team.startedAt = elapsed; team.portraitKey = null;
+    team.seen = new Map(); team.heroInfo = null;
     team.teams = (msg.teams || []).map((t, i) => ({ id: i, name: String(t.name || `ĐỘI ${i + 1}`).slice(0, 18), color: t.color || TEAM_COLORS[i], spawn: t.spawn || { x: 0, y: 0 }, kills: 0, alive: 0, units: [] }));
     team.heroTeam = -1; team.myTeam = -1; team.ctrl = null; me.team = undefined; me.teamOut = true;
     team.spectate = true; team.follow = true; team.hot = null; team.hotTimer = 0; dashTrails.length = 0;
@@ -5755,14 +5757,15 @@
       const t = team.teams[i] || (team.teams[i] = { id: i, kills: 0, alive: 0, units: [], spawn: { x: 0, y: 0 } });
       t.name = row[0]; t.color = row[1]; t.kills = row[2]; t.alive = row[3]; t.units.length = 0;
     });
-    for (const z of zombies) if (z.roster && team.teams[z.team]) team.teams[z.team].units.push(z);
+    for (const z of zombies) if (z.roster && team.teams[z.team]) { team.teams[z.team].units.push(z); team.seen.set(z.id, z); }
+    team.heroInfo = tm.n || null;
     elapsed = tm.el;
     const own = tm.c && tm.c[net.id] !== undefined ? net.proxies.get(tm.c[net.id]) || null : null;
     if (own !== team.ctrl && (own || !team.spectate || team.ctrl)) guestCtrl(own);
     if (tm.o !== null && tm.o !== undefined && !team.over) {
       team.over = true;
       const w = team.teams[tm.o];
-      window.TeamMode?.showResult({ winner: w ? { name: w.name, color: w.color } : null, teams: team.teams.map(t => ({ name: t.name, color: t.color, kills: t.kills, alive: t.alive })) });
+      window.TeamMode?.showResult(teamResultData(tm.o));
     }
   }
 
@@ -5793,9 +5796,27 @@
     team.over = true; paused = true; mouse.down = false;
     cancelCharge(); cancelPurpleChidoriCharge();
     updateHUD();
+    window.TeamMode?.showResult(teamResultData(winner));
+  }
+  // The result screen's data: every team with each of its units (name, portrait, standing or fallen).
+  // A guest's unit list only holds units still on the field, so it adds the ones it saw fall
+  // (team.seen) and the host's Naruto (team.heroInfo from the snapshot).
+  function teamResultData(winner) {
     const w = team.teams[winner];
-    window.TeamMode?.showResult({ winner: w ? { name: w.name, color: w.color } : null,
-      teams: team.teams.map(t => ({ name: t.name, color: t.color, kills: t.kills, alive: t.alive })) });
+    const entry = (u, dead) => ({ name: unitName(u), sprite: unitSprite(u), tails: u.type === 'beast' ? window.TailedBeasts?.members?.[u.beastId]?.tails || 0 : 0,
+      dead, hp: dead ? 0 : u === me ? clamp(me.health / me.maxHealth, 0, 1) : clamp(u.health / u.maxHealth, 0, 1), you: u === team.ctrl });
+    return { winner: w ? { name: w.name, color: w.color } : null,
+      teams: team.teams.map((t, i) => {
+        const units = t.units.map(u => entry(u, u === me ? !!me.teamOut || !heroTargetable() : !(u.health > 0)));
+        if (net.role === 'client') {
+          const here = new Set(t.units);
+          for (const z of team.seen?.values() || []) if (z.team === i && !here.has(z)) units.push(entry(z, true));
+          const h = team.heroInfo;
+          if (h && h[0] === i) units.unshift({ name: 'UZUMAKI NARUTO', sprite: unitSprite(me), tails: 0, dead: !h[1], hp: h[1] ? h[2] : 0, you: false });
+        }
+        units.sort((a, b) => a.dead - b.dead);
+        return { name: t.name, color: t.color, kills: t.kills, alive: t.alive, units };
+      }) };
   }
 
   // Team-coloured ellipse under every unit (and Naruto); the driven one gets a bright pulsing ring.

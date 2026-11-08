@@ -5183,7 +5183,12 @@
     const toward = Math.atan2(foe.y - z.y, foe.x - z.x);
     let angle = null, len = 0;
     if (z.dodge || inHostileZone(z)) { angle = toward + (Math.random() < .5 ? 1 : -1) * rand(1.2, 1.9); len = rand(180, 280); }
-    else if (d > 380 && d < 1600) { angle = toward + rand(-.12, .12); len = d - 130; }
+    else if (d > 380) {
+      // Far away (another village): dash along the way the unit is steering around obstacles.
+      const ai = z.ai, route = ai && elapsed - ai.routeAt < .2 ? ai.routeA : toward;
+      angle = route + rand(-.1, .1); len = d - 130;
+      if (d > 900) { if (startDash(z, angle, len)) z.dashReady = elapsed + rand(.35, .7); z.dodge = false; return; }
+    }
     // A foe rooted in its own jutsu is open: close in on it.
     else if (d > 170 && d < 620 && busyUnit(foe) && Math.random() < .5) { angle = toward + rand(-.2, .2); len = d - 90; }
     z.dodge = false;
@@ -5239,13 +5244,47 @@
     }
     const len = Math.hypot(vx, vy);
     if (len < .05) return;
-    const step = Math.min(1, len) * speed * dt / len, ox = z.x, oy = z.y;
-    moveCircle(z, vx * step, vy * step, Math.min(z.r, 44));
-    // Walked into a wall: try the other side.
-    if (Math.hypot(z.x - ox, z.y - oy) < speed * dt * .2) {
-      z.stuck = (z.stuck || 0) + dt;
-      if (z.stuck > .4) { ai.side = -ai.side; ai.flipAt = now + rand(.8, 1.6); z.stuck = 0; }
-    } else z.stuck = 0;
+    const rr = Math.min(z.r, 44), look = rr + 30;
+    // Steer around houses and walls: if the way ahead is blocked, try angles further and further off
+    // it (the unit's favoured side first) and take the first free one.
+    let a = Math.atan2(vy, vx);
+    const straightBlocked = blocked(z.x + Math.cos(a) * look, z.y + Math.sin(a) * look, rr);
+    if (straightBlocked) {
+      for (const off of [.45, .9, 1.35, 1.8, 2.3]) {
+        const a1 = a + off * ai.side, a2 = a - off * ai.side;
+        if (!blocked(z.x + Math.cos(a1) * look, z.y + Math.sin(a1) * look, rr)) { a = a1; break; }
+        if (!blocked(z.x + Math.cos(a2) * look, z.y + Math.sin(a2) * look, rr)) { a = a2; break; }
+      }
+      vx = Math.cos(a) * Math.min(1, len); vy = Math.sin(a) * Math.min(1, len);
+    }
+    ai.routeA = a; ai.routeAt = now;
+    const step = Math.min(1, Math.hypot(vx, vy)) * speed * dt / (Math.hypot(vx, vy) || 1), ox = z.x, oy = z.y;
+    moveCircle(z, vx * step, vy * step, rr);
+    const moved = Math.hypot(z.x - ox, z.y - oy) >= speed * dt * .2;
+    z.stuck = moved ? 0 : (z.stuck || 0) + dt;
+    // The way to the foe runs into a house or village wall: stuck against it, or detouring around it
+    // for too long, the unit smashes through instead of hugging it forever.
+    const toFoe = Math.atan2(foe.y - z.y, foe.x - z.x);
+    const wall = d > 200 ? wallAt(z.x + Math.cos(toFoe) * (rr + 22), z.y + Math.sin(toFoe) * (rr + 22), rr) : null;
+    ai.detour = wall ? (ai.detour || 0) + dt : 0;
+    if (wall && (z.stuck > .25 || ai.detour > 1.1) && now >= (ai.smashAt || 0) && !busy) {
+      ai.smashAt = now + .4;
+      const hx = clamp(z.x + Math.cos(toFoe) * (rr + 22), wall.x, wall.x + wall.w), hy = clamp(z.y + Math.sin(toFoe) * (rr + 22), wall.y, wall.y + wall.h);
+      z.angle = toFoe; z.attackTimer = Math.max(z.attackTimer || 0, .25);
+      burst(hx, hy, '#bca78d', 8);
+      shake = Math.max(shake, 1.5);
+      worldImpact(hx, hy, 44, wall.solid ? 950 : 500, 'crater', toFoe);
+      if (wall.destroyed) { z.stuck = 0; ai.detour = 0; }
+    } else if (z.stuck > .5 && !wall) { ai.side = -ai.side; ai.flipAt = now + rand(.8, 1.6); z.stuck = 0; }
+  }
+  // The standing building (house, village wall) whose footprint touches a circle at x, y, if any.
+  function wallAt(x, y, r) {
+    const cx = Math.floor(x / WORLD.block), cy = Math.floor(y / WORLD.block);
+    for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
+      const b = buildingGrid[gx]?.[gy];
+      if (b && !b.destroyed && circleRect(x, y, r, b)) return b;
+    }
+    return null;
   }
   // Is z inside the warning zone of another team's grunt jutsu that has not landed yet? (returns that zone)
   function inHostileZone(z) {
@@ -5963,7 +6002,7 @@
     const t = team.teams[ti];
     if (!team.active || team.over || !t || !item) return 0;
     const spot = at ? validSpot(at.x, at.y) : t.spawn;
-    const n = clamp(Math.round(count) || 1, 1, 10);
+    const n = clamp(Math.round(count) || 1, 1, 50);
     for (let i = 0; i < n; i++) spawnQueue.push({ ...unitEntry(item), at: spot, team: ti, tight: true, roster: true });
     if (item.sprite && window.AnimeSprites?.has(item.sprite)) window.AnimeSprites.prewarm?.([item.sprite]);
     return n;
@@ -6000,7 +6039,7 @@
     window.TeamMode?.openSetup();
   }
   if (window.TeamMode) window.TeamMode.init({
-    colors: TEAM_COLORS, maxTeams: 10, maxPerTeam: 10, world: { w: WORLD.w, h: WORLD.h },
+    colors: TEAM_COLORS, maxTeams: 10, maxPerTeam: Infinity, world: { w: WORLD.w, h: WORLD.h },
     catalog: teamCatalog,
     portrait: (g, sprite, size) => { if (window.AnimeSprites?.has(sprite)) { window.AnimeSprites.drawPortrait(g, sprite, size); return true; } return false; },
     mapImage: () => { ensureMinimap(); return minimapBase; },

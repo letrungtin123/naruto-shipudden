@@ -314,7 +314,7 @@
       name.readOnly = !!guest;
       name.addEventListener('click', e => { e.stopPropagation(); select(i, true); });
       name.addEventListener('input', () => { t.name = name.value.toUpperCase().slice(0, 18) || `ĐỘI ${i + 1}`; save(); if (i === setup.sel) renderCatTitle(); });
-      head.append(badge, name, el('span', 'team-row-count', `${t.members.length}/${host.maxPerTeam}`));
+      head.append(badge, name, el('span', 'team-row-count', Number.isFinite(host.maxPerTeam) ? `${t.members.length}/${host.maxPerTeam}` : String(t.members.length)));
       const members = el('div', 'team-members');
       if (!t.members.length) members.append(el('span', 'team-empty', i === setup.sel ? 'Chọn nhân vật ở danh sách bên cạnh' : 'Chưa có nhân vật'));
       t.members.forEach((m, j) => {
@@ -385,7 +385,7 @@
     }
     ui.note.textContent = setup.mode === 'watch'
       ? 'Chỉ xem: bạn không điều khiển ai, camera tự do (WASD, kéo chuột, F tự theo trận đánh). Có thể bấm Tab hoặc chuột phải vào nhân vật để nhập vai bất cứ lúc nào.'
-      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (giữ để lướt liên tục), Backspace chuyển sang chỉ xem.`;
+      : `Tối đa ${host.maxTeams} đội, mỗi đội thêm bao nhiêu nhân vật cũng được (đông quá máy sẽ chậm). Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (giữ để lướt liên tục), Backspace chuyển sang chỉ xem.`;
   }
   function renderSetup() { renderModes(); renderList(); drawSetupMap(); }
   function openSetup() {
@@ -467,7 +467,7 @@
     const count = el('div', 'team-stepper');
     au.count = el('output', 'team-count-out');
     count.append(button('', '−', () => { add.count = Math.max(1, add.count - 1); renderAddBar(); }, 'Bớt'), au.count,
-      button('', '+', () => { add.count = Math.min(10, add.count + 1); renderAddBar(); }, 'Thêm'));
+      button('', '+', () => { add.count = Math.min(50, add.count + 1); renderAddBar(); }, 'Thêm'));
     au.modeTeam = button('coop-btn spawn-ghost', 'TẠI CỜ CỦA ĐỘI', () => { add.mode = 'team'; renderAddBar(); drawAddMap(); });
     au.modePoint = button('coop-btn spawn-ghost', 'TẠI ĐIỂM TRÊN BẢN ĐỒ', () => { add.mode = 'point'; if (!add.point) add.point = add.info.teams[add.sel]?.spawn; renderAddBar(); drawAddMap(); });
     bar.append(el('span', 'team-label', 'ĐỘI'), au.teams, el('span', 'team-label', 'SỐ LƯỢNG'), count, au.modeTeam, au.modePoint);

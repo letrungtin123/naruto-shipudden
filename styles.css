@@ -2473,8 +2473,8 @@ kbd {
 .skill.locked { opacity: .35; filter: grayscale(1); }
 
 /* Co-op team battle: pick your team. */
-.team-pick { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(10, 7, 5, .62); }
-.team-pick[hidden] { display: none; }
+.team-choose { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(10, 7, 5, .62); }
+.team-choose[hidden] { display: none; }
 .team-pick-card { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 22px 18px; text-align: center; color: #f6e9cc; background: #24180f; border: 2px solid #8a5a2a; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
 .team-pick-title { margin: 4px 0 6px; font: 400 clamp(26px, 4vw, 38px)/1.05 var(--font-display); letter-spacing: .04em; }
 .team-pick-note { margin: 0 0 14px; font-size: 13px; line-height: 1.45; color: #d9c6a2; }

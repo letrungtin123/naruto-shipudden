@@ -670,7 +670,7 @@
   const pick = { root: null };
   function pickTeam(data, onPick) {
     if (!pick.root) {
-      pick.root = el('div', 'team-pick');
+      pick.root = el('div', 'team-choose');
       pick.root.setAttribute('role', 'dialog');
       pick.root.setAttribute('aria-label', 'Chọn đội');
       document.body.append(pick.root);

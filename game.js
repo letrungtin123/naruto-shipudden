@@ -307,6 +307,7 @@
 
   function resetGame() {
     player = me;
+    healBase = new WeakMap(); dmgNums.length = 0;
     // Co-op teammates start side by side at the village's west road.
     Object.assign(me, { x: START.x, y: START.y + (net.role === 'solo' ? 0 : net.slot * 34), health: 100, maxHealth: 100, armor: 35, score: 0, kills: 0,
       speed: 0, weapon: 'staff', fireCooldown: 0, invuln: 1, nineTails: false, gates: false, punch: 0, punchCount: 0, rinnegan: false, rinPulse: 0, rinCount: 0, bCount: 0, sixPaths: false, spLift: 0, spCount: 0, susanoo: false, suCount: 0, clickMode: null,
@@ -2977,8 +2978,80 @@
     applyHit(z, damage, impactAngle);
   }
 
+  // Floating damage numbers over whoever takes a hit, in every mode. Hits landing on one target in quick
+  // succession add up in one rising number, so channelled jutsu don't spray a cloud of small values.
+  // The numbers live outside the units (WeakMap), which keeps co-op snapshots JSON-clean.
+  // kind: 'foe' (an enemy of yours: white, gold/orange when heavy), 'hurt' (you or your side: red),
+  // 'heal' (health won back: green).
+  const dmgNums = [], dmgLast = new WeakMap();
+  let healBase = new WeakMap();
+  function myUnitSide() { return team.ctrl && team.ctrl !== me ? team.ctrl.team : coopTeam() ? team.myTeam : team.heroTeam; }
+  function dmgKind(t) {
+    if (t === me || t.isClone || t.remote) return 'hurt';
+    return team.active && t.team === myUnitSide() ? 'hurt' : 'foe';
+  }
+  function popDamage(t, amount, kind = dmgKind(t)) {
+    if (!t || !(amount >= .5)) return;
+    const last = dmgLast.get(t) || {}; dmgLast.set(t, last);
+    const n = last[kind];
+    if (n && dmgNums.includes(n) && n.age - n.hitAt < .25 && n.age < 1.3) {
+      n.v += amount; n.hitAt = n.age; n.life = Math.max(n.life, n.age + .7); n.pop = 1;
+      n.heavy = n.heavy || n.v >= Math.max(150, (t.maxHealth || 100) * .15);
+      return;
+    }
+    const lift = Math.min(t.r || 14, 70);
+    const d = { x: t.x + rand(-12, 12), y: t.y - LIFT - lift - 52, v: amount, age: 0, hitAt: 0, life: .9, pop: 1, kind,
+      drift: rand(-18, 18), heavy: kind !== 'heal' && amount >= Math.max(150, (t.maxHealth || 100) * .15) };
+    dmgNums.push(d);
+    if (dmgNums.length > 70) dmgNums.shift();
+    last[kind] = d;
+  }
+  // Healing has many sources (healing jutsu, mode regeneration, Gakidō, boss heals), so instead of hooking
+  // each one this compares health frame to frame and shows what came back. A max-health change (entering
+  // or leaving a mode rescales health) and a revive from 0 only move the baseline. Co-op proxies compare
+  // the host's value, not the guest's own predicted hits.
+  function scanHeals() {
+    const check = t => {
+      const h = t.netProxy ? t.hostHealth : t.health, m = t.maxHealth || 100;
+      if (h === undefined) return;
+      const b = healBase.get(t);
+      if (!b || b.m !== m || b.h <= 0 || h < b.h) { healBase.set(t, { h, m }); return; }
+      if (h - b.h >= Math.max(1, m * .004)) { if (h > 0) popDamage(t, h - b.h, 'heal'); b.h = h; }
+    };
+    if (heroOnField()) check(me);
+    for (const c of skillState.clones) check(c);
+    for (const z of zombies) if (z.health > 0) check(z);
+  }
+  function updateDamageNumbers(dt) {
+    for (let i = dmgNums.length - 1; i >= 0; i--) {
+      const n = dmgNums[i]; n.age += dt; n.pop = Math.max(0, n.pop - dt * 7);
+      if (n.age >= n.life) dmgNums.splice(i, 1);
+    }
+  }
+  const fmtDamage = v => v >= 10000 ? (v / 1000).toFixed(v >= 100000 ? 0 : 1) + 'k' : String(Math.round(v));
+  function drawDamageNumbers() {
+    if (!dmgNums.length) return;
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    for (const n of dmgNums) {
+      const rise = 46 * (1 - Math.pow(1 - Math.min(1, n.age / n.life), 2));
+      const x = n.x + n.drift * n.age, y = n.y - rise;
+      if (!visible(x - 60, y - 30, 120, 60)) continue;
+      const size = (11 + Math.min(17, Math.log10(n.v + 1) * 5.2)) * (n.heavy ? 1.15 : 1) * (1 + n.pop * .45);
+      const fade = clamp((n.life - n.age) / .3, 0, 1);
+      const fill = n.kind === 'heal' ? '#5dff7a' : n.kind === 'hurt' ? '#ff4a4a' : n.heavy ? (n.v >= 600 ? '#ff8a1f' : '#ffd23a') : '#ffffff';
+      ctx.globalAlpha = fade;
+      ctx.font = `900 ${size.toFixed(1)}px "Trebuchet MS", system-ui, sans-serif`;
+      const txt = (n.kind === 'hurt' ? '-' : n.kind === 'heal' ? '+' : '') + fmtDamage(n.v);
+      ctx.lineWidth = Math.max(3, size * .22); ctx.strokeStyle = n.kind === 'hurt' ? '#2a0606' : n.kind === 'heal' ? '#062a10' : '#150d06';
+      ctx.strokeText(txt, x, y);
+      ctx.fillStyle = fill; ctx.fillText(txt, x, y);
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+
   function applyHit(z, damage, impactAngle) {
     if (z.armorScale) damage *= z.armorScale;
+    if (z.health > 0) popDamage(z, Math.min(damage, z.health));
     z.health = Math.max(0, z.health - damage);
     z.hitFlash = .12;
     z.woundLevel = 1 - z.health / z.maxHealth;
@@ -3073,10 +3146,12 @@
     if (player.remote) {
       // A teammate's ninja lives in their own browser: tell them how hard they were hit.
       netSend({ t: 'hurt', to: player.peerId, a: Math.round(amount) });
+      popDamage(player, amount * (player.susanoo ? SUSANOO_GUARD : 1), 'hurt');
       bloodBurst(player.x, player.y, rand(0, Math.PI * 2), 5);
       return;
     }
     if (player.susanoo) amount *= SUSANOO_GUARD;
+    popDamage(player, amount, 'hurt');
     if (player.armor > 0) { const used = Math.min(player.armor, amount); player.armor -= used; amount -= used; }
     player.health = Math.max(0, player.health - amount);
     if (amount > 0) { bloodBurst(player.x, player.y, rand(0, Math.PI * 2), 5); addBloodDecal(player.x, player.y, 6); }
@@ -3120,6 +3195,7 @@
   }
 
   function updateParticles(dt) {
+    updateDamageNumbers(dt);
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96; p.life -= dt;
       if (p.life <= 0) { particlePool.push(p); particles[i] = particles[particles.length - 1]; particles.pop(); }
@@ -3144,7 +3220,7 @@
     rebuildEnemyBuckets();
     updateSkills(dt);
     if (net.role !== 'client') updateWar(dt);
-    updateBullets(dt); updateParticles(dt);
+    updateBullets(dt); updateParticles(dt); scanHeals();
     if (coop()) updateNet(dt);
     if (team.active) { updateTeamMatch(dt); teamHeldDash(); }
     for (const b of destructionState.ruins) b.collapseLife = Math.max(0, b.collapseLife - dt);
@@ -4074,6 +4150,7 @@
     // Hit sparks and blood spray burst from bodies, not from feet.
     for (const p of particles) { ctx.globalAlpha = clamp(p.life/p.max,0,1); ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y-LIFT*.7,p.size,p.size); } ctx.globalAlpha=1;
     drawWorldAmbient();
+    drawDamageNumbers();
     ctx.restore();
   }
 
@@ -4528,7 +4605,7 @@
   }
 
   function setProxyHealth(z, health) {
-    if (z.hostHealth !== undefined && health < z.hostHealth) z.hitFlash = Math.max(z.hitFlash || 0, .1);
+    if (z.hostHealth !== undefined && health < z.hostHealth) { z.hitFlash = Math.max(z.hitFlash || 0, .1); popDamage(z, z.hostHealth - health); }
     if (z.health > 0 && health <= 0) {
       addBloodDecal(z.x, z.y, isGiant(z) ? 34 : z.type === 'brute' ? 20 : 13);
       bloodBurst(z.x, z.y, rand(0, Math.PI * 2), isGiant(z) ? 30 : 10);
@@ -4627,6 +4704,7 @@
     if (clone.invuln > 0 || !(clone.health > 0)) return;
     clone.invuln = .3;
     if (clone.ownerId) { netSend({ t: 'clonehurt', to: clone.ownerId, id: clone.id, a: Math.round(amount) }); return; }
+    popDamage(clone, Math.min(amount, clone.health), 'hurt');
     clone.health -= amount;
     clone.hitFlash = .15;
     bloodBurst(clone.x, clone.y, rand(0, Math.PI * 2), 3);

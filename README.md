@@ -47,6 +47,7 @@ Trong trận co-op:
 - Rasengan nằm trong lòng bàn tay, Rasen Shuriken giơ cao trên đầu. Hỏa cầu, Chidori, Vĩ Thú Ngọc và khói "bùm" của Ảnh Phân Thân đều được vẽ lại; phi tiêu, kunai và nhẫn thuật bay ngang ngực, có bóng dưới đất.
 - Toàn bộ hình ảnh được vẽ bằng code (Canvas), không dùng ảnh gốc từ phim.
 - Đồ hoạ WebGL (`postfx.js`): mỗi khung hình được đưa qua GPU để chiêu thức phát sáng lan ra như phim (bloom), các cú va chạm lớn tạo sóng xung kích làm méo không gian, rung mạnh thì tách màu. Bấm `P` để bật/tắt; máy không hỗ trợ WebGL2 sẽ tự dùng hình Canvas thường.
+- Số máu bay lên trên đầu ở mọi chế độ: trúng chiêu hiện số sát thương (trắng; vàng/cam khi đòn nặng), bạn hoặc phe mình mất máu hiện số đỏ có dấu `-`, hồi máu (chiêu hồi, hồi máu theo trạng thái, Ngạ Quỷ Đạo…) hiện số xanh có dấu `+`. Nhiều đòn liên tiếp vào cùng một người được cộng dồn thành một số.
 - Tung chiêu không hiện thông báo hay cut-in giữa màn hình. Cut-in (có cận cảnh đôi mắt kiểu anime) chỉ dành cho các sự kiện của Đại Chiến: mở màn, Madara hồi sinh, Lục Đạo Madara xuất hiện và chiến thắng.
 - `gallery.html` (mở http://localhost:8080/gallery.html) là bảng thiết kế: mọi nhân vật với đủ tư thế, chân dung và ảnh cận cảnh.
 

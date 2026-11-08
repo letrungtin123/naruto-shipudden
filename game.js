@@ -2771,7 +2771,7 @@
         curTeam = z.team;
         if (z.invuln > 0) z.invuln -= dt;
         player = z.manual ? cursorPseudo(z) : unitFoe(z) || idlePseudo(z);
-        if (!z.manual && !(isGiant(z) && aiDodge(z))) aiDash(z, player, dist(z, player));
+        if (!z.manual && !aiDodge(z)) aiDash(z, player, dist(z, player));
       } else {
         if (!targetList.length) return;
         player = nearestTarget(z);
@@ -2877,7 +2877,8 @@
       if (dashing) { speed *= 3.3; z.dashTimer = Math.max(0, z.dashTimer - dt); }
       const approach = z.type !== 'spitter' || d > 260;
       const retreat = z.type === 'spitter' && d < 170;
-      if (dashing || (d > z.r + player.r + 5 && (approach || retreat))) {
+      if (team.active && !dashing) teamAiMove(z, spec, speed, d, desired, dt);
+      else if (dashing || (d > z.r + player.r + 5 && (approach || retreat))) {
         const direction = retreat ? -1 : 1;
         const moveAngle = dashing ? z.dashAngle : desired;
         const ox = z.x, oy = z.y;
@@ -5056,8 +5057,7 @@
   }
 
   // ---- Shunshin dash ("lướt"): a short burst along a line with afterimages and dust; walls stop it.
-  // ctrlCd: the cooldown of a player's right-click dash (AI dashes keep their own timers).
-  const TEAM_DASH = { len: 340, giantLen: 230, speed: 1700, ctrlCd: 5 };
+  const TEAM_DASH = { len: 340, giantLen: 230, speed: 1700 };
   const dashTrails = [];
   function startDash(u, angle, len) {
     if (u.shun || !(u.health > 0)) return false;
@@ -5105,10 +5105,69 @@
     const toward = Math.atan2(foe.y - z.y, foe.x - z.x);
     let angle = null, len = 0;
     if (z.dodge || inHostileZone(z)) { angle = toward + (Math.random() < .5 ? 1 : -1) * rand(1.2, 1.9); len = rand(180, 280); }
-    else if (d > 430 && d < 1600) { angle = toward + rand(-.12, .12); len = d - 130; }
+    else if (d > 380 && d < 1600) { angle = toward + rand(-.12, .12); len = d - 130; }
+    // A foe rooted in its own jutsu is open: close in on it.
+    else if (d > 170 && d < 620 && busyUnit(foe) && Math.random() < .5) { angle = toward + rand(-.2, .2); len = d - 90; }
     z.dodge = false;
     if (angle === null) return;
-    if (startDash(z, angle, len)) z.dashReady = elapsed + rand(2.5, 4);
+    if (startDash(z, angle, len)) z.dashReady = elapsed + rand(1.6, 2.8);
+  }
+  const busyUnit = t => !!t && (t.manualBusy || t.skillWindup > 0 || t.bossWindup > 0 || t.kageWindup > 0 || t.akatsukiWindup > 0 || t.otsuWindup > 0 || t.beastWindup > 0 || (t === me && (me.castPose > 0 || !!skillState.charge)));
+  // Team battle AI, moving like a player instead of walking straight into its foe. Each unit has a
+  // temperament (how far it likes to fight, how often it dives in). It circles its foe and switches
+  // sides at odd moments like a player juking, dives in to strike then backs off, spreads out from its
+  // allies, and pulls back with a dash when badly hurt.
+  function teamAi(z) {
+    return z.ai || (z.ai = { side: Math.random() < .5 ? 1 : -1, flipAt: 0, range: rand(50, 190), aggr: rand(.5, 1),
+      mode: 'fight', until: 0, jx: 0, jy: 0, jAt: 0, prevAtk: 0, wasBusy: false, hurtAt: -99 });
+  }
+  function teamAiMove(z, spec, speed, d, desired, dt) {
+    const ai = teamAi(z), foe = player, now = elapsed;
+    const contact = z.r + (foe.r || 13) + 4;
+    const melee = !isGiant(z) && !(spec.jutsu || spec.style) && z.type !== 'walker' && z.type !== 'spitter';
+    const hp = z.health / (z.maxHealth || 1), foeHp = (foe.health || 0) / (foe.maxHealth || 1);
+    // A blow just landed (attack timer reset) or a jutsu just ended: hit and run.
+    const busy = busyUnit(z);
+    if ((z.attackTimer > ai.prevAtk + .2 || (ai.wasBusy && !busy && Math.random() < .6)) && ai.mode !== 'retreat') {
+      ai.mode = 'evade'; ai.until = now + rand(.3, .6);
+      if (Math.random() < .5) ai.side = -ai.side;
+    }
+    ai.prevAtk = z.attackTimer; ai.wasBusy = busy;
+    // Badly hurt and losing the trade: back off (with a dash) toward the team, then come back.
+    if (ai.mode !== 'retreat' && hp < .28 && foeHp > hp + .1 && now - ai.hurtAt > 9) {
+      ai.mode = 'retreat'; ai.until = now + rand(1.6, 2.6); ai.hurtAt = now;
+      if (!z.shun && elapsed >= (z.dashReady || 0) && startDash(z, desired + Math.PI + rand(-.5, .5), 260)) z.dashReady = elapsed + rand(1.6, 2.6);
+    }
+    if (ai.mode !== 'fight' && now > ai.until) ai.mode = 'fight';
+    if (ai.mode === 'fight' && z.attackTimer <= 0 && !busy && Math.random() < dt * (melee ? 3 : 1.2 * ai.aggr)) { ai.mode = 'dive'; ai.until = now + 1.4; }
+    if (now > ai.flipAt) { if (ai.flipAt) ai.side = -ai.side; ai.flipAt = now + rand(.7, 2.2); }
+    if (now > ai.jAt) { const a = rand(0, Math.PI * 2); ai.jx = Math.cos(a) * .22; ai.jy = Math.sin(a) * .22; ai.jAt = now + rand(.2, .45); }
+    const ux = Math.cos(desired), uy = Math.sin(desired), px = -uy * ai.side, py = ux * ai.side;
+    const want = melee || ai.mode === 'dive' ? contact : contact + ai.range;
+    let radial = 0, tang = 0;
+    if (ai.mode === 'retreat') { radial = -1; tang = .35; }
+    else if (ai.mode === 'evade') { radial = -.8; tang = .8; }
+    else {
+      if (d > want + 30) radial = d > want + 260 ? 1 : .85;
+      else if (d < want - 20) radial = -.6;
+      tang = ai.mode === 'dive' ? .25 : d < want + 220 ? .72 : .2;
+    }
+    let vx = ux * radial + px * tang + ai.jx, vy = uy * radial + py * tang + ai.jy;
+    // Spread out: allies too close push each other apart (no blob of units on one spot).
+    for (const o of team.alive) {
+      if (o === z || o.team !== z.team) continue;
+      const dx = z.x - o.x, dy = z.y - o.y, q = dx * dx + dy * dy, R = (Math.min(z.r, 60) + Math.min(o.r || 13, 60)) * 1.5 + 34;
+      if (q < R * R && q > 1) { const L = Math.sqrt(q), k = (1 - L / R) * 1.3 / L; vx += dx * k; vy += dy * k; }
+    }
+    const len = Math.hypot(vx, vy);
+    if (len < .05) return;
+    const step = Math.min(1, len) * speed * dt / len, ox = z.x, oy = z.y;
+    moveCircle(z, vx * step, vy * step, Math.min(z.r, 44));
+    // Walked into a wall: try the other side.
+    if (Math.hypot(z.x - ox, z.y - oy) < speed * dt * .2) {
+      z.stuck = (z.stuck || 0) + dt;
+      if (z.stuck > .4) { ai.side = -ai.side; ai.flipAt = now + rand(.8, 1.6); z.stuck = 0; }
+    } else z.stuck = 0;
   }
   // Is z inside the warning zone of another team's grunt jutsu that has not landed yet? (returns that zone)
   function inHostileZone(z) {
@@ -5120,7 +5179,8 @@
   }
   // AI bosses and beasts read the fight in every mode: a shot or thrown jutsu about to reach them, a warning zone
   // under their feet, Naruto charging a jutsu right beside them, or a heavy blow just taken: they sidestep with a dash.
-  const DODGE = { look: .5, chance: .72, miss: .45, cdMin: 1.3, cdMax: 2.4 };
+  // Team battle AI is sharper: it dodges more often and recovers sooner.
+  const DODGE = { look: .5, chance: .72, miss: .45, cdMin: 1.3, cdMax: 2.4, teamChance: .82, teamCdMin: 1, teamCdMax: 1.9 };
   function dodgeAngle(z) {
     const reach = Math.min(z.r || 20, 70) + 24;
     let best = null, bestT = Infinity;
@@ -5182,21 +5242,22 @@
     z.dodgeScan = elapsed + .07;
     const a = dodgeAngle(z);
     if (a === null) return false;
-    if (Math.random() > DODGE.chance) { z.dodgeReady = elapsed + DODGE.miss; return false; }
+    if (Math.random() > (team.active ? DODGE.teamChance : DODGE.chance)) { z.dodgeReady = elapsed + DODGE.miss; return false; }
     if (!startDash(z, a, hugeUnit(z) ? 200 : 240)) return false;
-    z.dodgeReady = elapsed + rand(DODGE.cdMin, DODGE.cdMax);
+    z.dodgeReady = elapsed + (team.active ? rand(DODGE.teamCdMin, DODGE.teamCdMax) : rand(DODGE.cdMin, DODGE.cdMax));
     z.dashReady = Math.max(z.dashReady || 0, elapsed + 1);
     return true;
   }
   // Right click: the driven unit (or Naruto) dashes toward the cursor. No cooldown: a click mid-dash turns it
   // toward the cursor again, and holding the button chains dash after dash.
-  // A player's dash toward a point; then it recharges for TEAM_DASH.ctrlCd seconds (u.pdashAt).
+  // A player's dash toward a point. No cooldown: a click mid-dash turns it toward the cursor again,
+  // and a held right button chains dash after dash.
   function dashToward(u, wx, wy) {
     if (!u || !(u === me ? heroTargetable() : u.health > 0) || (u !== me && u.kageDash > 0)) return;
-    if (elapsed < (u.pdashAt || 0) || u.shun) return;
-    if (!startDash(u, Math.atan2(wy - u.y, wx - u.x))) return;
-    u.pdashAt = elapsed + TEAM_DASH.ctrlCd;
-    if (u === me) me.invuln = Math.max(me.invuln, .2);
+    u.shun = null;
+    // Only a fresh dash (not a chain) gives Naruto his short dodge invulnerability.
+    if (startDash(u, Math.atan2(wy - u.y, wx - u.x)) && u === me && !(elapsed - (team.lastDash || -9) < 1)) me.invuln = Math.max(me.invuln, .2);
+    if (u === me) team.lastDash = elapsed;
   }
   function teamDash() {
     const u = team.ctrl;
@@ -5268,10 +5329,29 @@
   }
   function unitFoe(z) {
     if (foeGone(z.foe, z.team) || !(elapsed < z.foeAt)) {
-      z.foe = nearestHostile(z, z.team);
-      z.foeAt = elapsed + .25 + Math.random() * .2;
+      z.foe = pickFoe(z);
+      z.foeAt = elapsed + .3 + Math.random() * .25;
     }
     return z.foe;
+  }
+  // Not just the nearest: within reach it prefers the wounded (to finish them), the unit the player
+  // drives (the biggest threat), a foe stuck in a cast, and keeps its current foe unless another is
+  // clearly better.
+  function pickFoe(z) {
+    let best = null, bestS = Infinity;
+    for (const t of team.alive) {
+      if (t.team === z.team || !(t.health > 0)) continue;
+      const d = Math.hypot(t.x - z.x, t.y - z.y);
+      let sc = d;
+      if (d < 1100) {
+        sc += clamp(t.health / (t.maxHealth || 1), 0, 1) * 220;
+        if (t === team.ctrl) sc -= 140;
+        if (busyUnit(t)) sc -= 80;
+        if (t === z.foe) sc -= 120;
+      }
+      if (sc < bestS) { bestS = sc; best = t; }
+    }
+    return best;
   }
 
   function unitName(u) {
@@ -5700,8 +5780,8 @@
     setText(ui.eventText, (coop() ? 'J chọn đội · ' : '') + (!c
       ? 'Chỉ xem: WASD/mũi tên hoặc kéo chuột để di chuyển camera (Shift nhanh hơn) · F tự theo trận đánh · bấm bản đồ nhỏ / M để tới đó · Tab hoặc chuột phải vào ai để nhập vai · N thêm quân'
       : unit
-      ? 'WASD đi · chuột trái tung chiêu liên hoàn · chuột phải lướt (hồi 5 giây) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân'
-      : 'Naruto (đủ phím) · chuột phải lướt (hồi 5 giây) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân').replace(net.role === 'client' ? ' · N thêm quân' : '#', ''));
+      ? 'WASD đi · chuột trái tung chiêu liên hoàn · chuột phải lướt (giữ để lướt liên tục) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân'
+      : 'Naruto (đủ phím) · chuột phải lướt (giữ để lướt liên tục) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân').replace(net.role === 'client' ? ' · N thêm quân' : '#', ''));
     ui.bossBar.classList.remove('active');
     if (!window.TeamMode) return;
     window.TeamMode.board(team.teams.map(t => ({ name: t.name, color: t.color, alive: t.alive, kills: t.kills,
@@ -5710,7 +5790,7 @@
         dead: u === me ? me.teamOut : !(u.health > 0), ctrl: u === c })) })));
     if (!unit) { window.TeamMode.moves(null); return; }
     const list = unit.movesCache || (unit.movesCache = unitMoves(unit)), cd = unit.moveCd || [];
-    window.TeamMode.moves({ id: unit.id, name: unitName(unit), color, busy: !!unit.manualBusy, next: (unit.comboIdx || 0) % Math.max(1, list.length), dash: { left: Math.max(0, (unit.pdashAt || 0) - elapsed), ratio: Math.max(0, (unit.pdashAt || 0) - elapsed) / TEAM_DASH.ctrlCd },
+    window.TeamMode.moves({ id: unit.id, name: unitName(unit), color, busy: !!unit.manualBusy, next: (unit.comboIdx || 0) % Math.max(1, list.length), dash: { left: 0, ratio: 0 },
       moves: list.map((m, i) => { const left = Math.max(0, (cd[i] || 0) - elapsed); return { label: m.label, left, ratio: left / moveCooldown(unit, i) }; }) });
   }
 

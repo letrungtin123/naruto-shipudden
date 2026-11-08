@@ -385,7 +385,7 @@
     }
     ui.note.textContent = setup.mode === 'watch'
       ? 'Chỉ xem: bạn không điều khiển ai, camera tự do (WASD, kéo chuột, F tự theo trận đánh). Có thể bấm Tab hoặc chuột phải vào nhân vật để nhập vai bất cứ lúc nào.'
-      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (hồi 5 giây), Backspace chuyển sang chỉ xem.`;
+      : `Tối đa ${host.maxTeams} đội · ${host.maxPerTeam} nhân vật mỗi đội. Naruto đầu tiên là bạn; mọi nhân vật khác do máy điều khiển. Trong trận: Tab đổi nhân vật, chuột trái tung chiêu liên hoàn, chuột phải lướt (giữ để lướt liên tục), Backspace chuyển sang chỉ xem.`;
   }
   function renderSetup() { renderModes(); renderList(); drawSetupMap(); }
   function openSetup() {

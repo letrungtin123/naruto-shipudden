@@ -215,7 +215,247 @@
   // other teams. Outside team mode team.active is false and none of this changes anything.
   // ---------------------------------------------------------------------------
   const TEAM_COLORS = ['#ff4f3a', '#3fa2ff', '#5fd35a', '#ffd23f', '#b46cff', '#ff6fb8', '#2fe0cf', '#ff9326', '#eef2f5', '#a8794a'];
-  const TEAM_HERO_HP = 120, TEAM_UNIT_INVULN = .38, TEAM_MOVE_CD = 1.5, TEAM_ULT_CD = 12, TEAM_COMBO_GAP = .25;
+  // Team battle balance, League-style: every named character (bosses, tailed beasts, Naruto) has about the
+  // same health and deals about the same damage per second, so a fight is won by landing jutsu, dodging and
+  // dashing well, not by stats. Heals are cut down hard (35% of the amount, at most 12% of max health in one
+  // go, refilling 2% a second), everyone runs at the same speed and the dash has a 3 s cooldown.
+  // TEAM_TUNE evens out each move set: [damage, health] factors found by measuring every character's damage
+  // per second on a training dummy and how much damage it takes from the same attacker (dodges, guards, size).
+  const TEAM_BAL = { hp: 40000, dmg: 1245, run: 340, giantRun: 300, formRun: 1.15, dashCd: 3, guard: .7,
+    heal: .35, healCap: .12, healRefill: .02, hero: { dmg: 5.26, hp: 1, baryon: .34, gates: 1, rinnegan: .9, sixPaths: 1, susanoo: 1 } };
+  const TEAM_TUNE = {
+    'akatsuki:deidara': [0.82, 1.09], 'akatsuki:hidan': [0.97, 1.06], 'akatsuki:itachi': [0.89, 0.87],
+    'akatsuki:kakuzu': [0.82, 0.82], 'akatsuki:kisame': [0.9, 1.03], 'akatsuki:konan': [0.74, 0.84],
+    'akatsuki:pain': [1.23, 0.96], 'akatsuki:sasori': [1.35, 1.13], 'beast:chomei': [0.55, 0.96],
+    'beast:gyuki': [0.62, 1.03], 'beast:isobu': [1.04, 1.09], 'beast:kokuo': [2.42, 1.05],
+    'beast:matatabi': [0.91, 1.05], 'beast:saiken': [1.01, 1.04], 'beast:shukaku': [1, 1.1],
+    'beast:songoku': [1.03, 1.06], 'bee:killer_bee': [0.5, 1.03], 'boruto:boruto': [1.22, 1.03],
+    'boruto:kawaki': [1.42, 0.92], 'boruto:mitsuki': [1.02, 1.01], 'boruto:sarada': [1.1, 1.01],
+    'danzo:danzo': [1.26, 1.2], 'duel:guy': [1.05, 0.94], 'duel:hanzo': [0.81, 0.98], 'duel:lee': [3.32, 1.08],
+    'edokage:kazekage3': [0.56, 0.92], 'edokage:raikage3': [1.45, 0.78], 'edokage:rasa': [0.86, 1],
+    'edomizu:gengetsu': [1.23, 0.87], 'edomizu:yagura': [0.9, 0.91], 'hokage:hashirama': [0.6, 1.02],
+    'hokage:hiruzen': [0.68, 1.14], 'hokage:kakashi': [0.96, 0.88], 'hokage:minato': [0.76, 1.07],
+    'hokage:tobirama': [0.79, 0.99], 'hokage:tsunade': [1.61, 0.88], 'jinchu:fu': [0.7, 0.75],
+    'jinchu:han': [0.99, 0.96], 'jinchu:roshi': [0.8, 0.92], 'jinchu:utakata': [0.85, 1], 'jinchu:yugito': [0.86, 1.03],
+    'jonin:asuma': [1.45, 1.12], 'jonin:kurenai': [1.68, 0.96], 'jonin:sai': [0.78, 1.13], 'jonin:yamato': [1.08, 0.99],
+    'jubi:jubi': [1.44, 1.09], 'kage:ay': [1, 0.75], 'kage:gaara': [0.84, 0.89], 'kage:mei': [0.88, 1.03],
+    'kage:onoki': [0.71, 1.04], 'kara:code': [1.43, 0.99], 'kara:jigen': [1.1, 1.06], 'kara:kashin': [0.93, 1.01],
+    'kara:toneri': [1.11, 1.02], 'kara:urashiki': [0.88, 0.88], 'konoha11:choji': [0.5, 1.1],
+    'konoha11:ino': [1.5, 1.04], 'konoha11:kiba': [1.32, 0.89], 'konoha11:shino': [1.43, 1.05],
+    'konoha11:tenten': [1.13, 0.96], 'kyubi:kurama': [1.22, 1.27], 'legend:kazekage1': [1.12, 0.93],
+    'legend:mu': [0.8, 1.07], 'legend:obito_rikudo': [0.88, 0.93], 'madara:madara': [1.14, 1.03],
+    'madara:madara_rikudo': [1.14, 0.94], 'nagato:nagato': [0.79, 0.85], 'newkage:chojuro': [1.04, 1.11],
+    'newkage:darui': [0.93, 0.96], 'newkage:kurotsuchi': [0.9, 1], 'otsutsuki:isshiki': [0.71, 0.99],
+    'otsutsuki:kaguya': [0.64, 1.02], 'otsutsuki:kinshiki': [0.83, 1.05], 'otsutsuki:momoshiki': [0.88, 1.05],
+    'paths:pain_animal': [1.03, 0.99], 'paths:pain_asura': [1.36, 1.07], 'paths:pain_human': [1.83, 1.08],
+    'paths:pain_naraka': [0.94, 0.98], 'paths:pain_preta': [1.6, 0.84], 'rikudo:ashura': [1.56, 0.96],
+    'rikudo:hagoromo': [0.6, 1.04], 'rikudo:hamura': [1.79, 1.1], 'rookie:hinata': [4, 1.04],
+    'rookie:neji': [2.01, 0.94], 'rookie:sakura': [1.35, 1.15], 'rookie:shikamaru': [0.55, 1.1],
+    'sannin:jiraiya': [0.96, 1], 'sannin:kabuto': [0.88, 1.08], 'sannin:orochimaru': [0.78, 0.99],
+    'sasuke:sasuke': [0.93, 0.84], 'sound:jirobo': [1.02, 0.91], 'sound:kidomaru': [1.09, 1.02],
+    'sound:kimimaro': [1.41, 0.96], 'sound:sakon': [1.95, 0.76], 'sound:tayuya': [0.98, 1.08],
+    'sunakiri:haku': [1.51, 1.07], 'sunakiri:kankuro': [0.96, 0.85], 'sunakiri:temari': [1.22, 1.09],
+    'sunakiri:zabuza': [0.97, 0.77], 'taka:jugo': [1.28, 0.89], 'taka:karin': [0.66, 0.95], 'taka:mifune': [1.19, 1.05],
+    'taka:suigetsu': [1.71, 0.78], 'tobi:tobi': [0.64, 0.91], 'uchiha:fugaku': [1.26, 0.84], 'uchiha:indra': [0.89, 1],
+    'uchiha:shisui': [1.3, 0.95], 'zetsu:zetsu': [1.28, 0.94] };
+  // Crowd control (team battle). Each character's control jutsu, by move id: a stun (no walking, casting or
+  // dashing, and the jutsu being cast is cut off), a root (no walking or dashing, jutsu still allowed) or a
+  // slow. While such a move is out (CC.window seconds from its start) every hit its caster lands carries it,
+  // projectiles included. Giants are held for less time, and after a stun or root ends the target can't be
+  // stunned or rooted again for CC.immune seconds, so nobody gets chain-locked.
+  const TEAM_CC = {
+    'kage:gaara': { coffin: ['stun', 1.3], tsunami: ['slow', 2] },
+    'kage:mei': { lava: ['root', 1.4], mist: ['slow', 2.5] }, 'kage:ay': { lariat: ['stun', 0.8], liger: ['stun', 1] },
+    'kage:onoki': { boulder: ['root', 1.5] }, 'akatsuki:pain': { bansho: ['stun', 0.8], chibaku: ['stun', 1.4] },
+    'akatsuki:itachi': { tsukuyomi: ['stun', 1.5], crows: ['slow', 2] },
+    'akatsuki:kisame': { suiro: ['stun', 1.4], sharks: ['slow', 2] }, 'akatsuki:deidara': { c4: ['slow', 2.5] },
+    'akatsuki:sasori': { poison: ['slow', 2.5], spikes: ['root', 1.2] },
+    'akatsuki:kakuzu': { jiongu: ['root', 1.4], gian: ['stun', 0.8] },
+    'akatsuki:konan': { butterflies: ['root', 1.2], tornado: ['slow', 2] },
+    'akatsuki:hidan': { jashin: ['root', 1.4], chain: ['slow', 2] },
+    'sannin:jiraiya': { gamabunta: ['stun', 1], goemon: ['slow', 2.5] },
+    'sannin:orochimaru': { senei: ['root', 1.4], manda: ['stun', 1] },
+    'sannin:kabuto': { mandala: ['root', 1.4], hakugeki: ['stun', 1.2] },
+    'hokage:hashirama': { h_forest: ['root', 1.6], h_pollen: ['stun', 1.2] },
+    'hokage:tobirama': { t_slash: ['stun', 0.7], t_wall: ['slow', 2] },
+    'hokage:hiruzen': { s_enma: ['root', 1.5], s_reaper: ['stun', 1.4] }, 'hokage:minato': { m_nidan: ['stun', 0.7] },
+    'hokage:tsunade': { ts_heel: ['stun', 1], ts_katsuyu: ['slow', 2.5] },
+    'hokage:kakashi': { k_raikiri: ['stun', 0.7], k_ninken: ['root', 1.5] },
+    'legend:kazekage1': { tornado: ['stun', 0.9], sandstorm: ['slow', 2.5] }, 'legend:mu': { cubes: ['root', 1.5] },
+    'legend:obito_rikudo': { roots: ['root', 1.5], kamui: ['stun', 0.8] },
+    'madara:madara': { jukai: ['root', 1.6], tengai: ['stun', 1.2] },
+    'madara:madara_rikudo': { limbo: ['stun', 1], tengai3: ['stun', 1.2] },
+    'nagato:nagato': { bansho: ['stun', 0.8], chibaku: ['stun', 1.4], gakido: ['slow', 2] },
+    'bee:killer_bee': { tentacles: ['root', 1.3], ink: ['slow', 2.5], lariat: ['stun', 0.8] },
+    'sasuke:sasuke': { nagashi: ['stun', 1], kirin: ['stun', 1] },
+    'tobi:tobi': { sashiki: ['root', 1.4], jukai: ['root', 1.6], kamui: ['stun', 0.8] },
+    'zetsu:zetsu': { cage: ['root', 1.6], spore: ['slow', 2], latch: ['stun', 1] },
+    'danzo:danzo': { fuin: ['stun', 1.4], mokuton: ['root', 1.3] },
+    'jubi:jubi': { roar: ['stun', 0.8], wood: ['root', 1.5] },
+    'edokage:raikage3': { kokuton: ['stun', 0.9], quake: ['slow', 2] },
+    'edokage:kazekage3': { pull: ['stun', 0.8], drizzle: ['slow', 2] },
+    'edokage:rasa': { pyramid: ['stun', 1.4], goldwave: ['slow', 2.5] }, 'edomizu:gengetsu': { clam: ['stun', 1] },
+    'edomizu:yagura': { coral: ['root', 1.4], mist: ['slow', 2.5] },
+    'newkage:darui': { panther: ['stun', 0.9], combo: ['slow', 2] },
+    'newkage:chojuro': { prison: ['stun', 1.4], mist: ['slow', 2] },
+    'newkage:kurotsuchi': { lime: ['root', 1.5], flood: ['slow', 2.5] },
+    'uchiha:shisui': { koto: ['stun', 1.5], crows: ['slow', 2] },
+    'uchiha:fugaku': { police: ['root', 1.3], fgAma: ['slow', 2] },
+    'uchiha:indra': { kirin: ['stun', 1], inAma: ['slow', 2] },
+    'paths:pain_asura': { a_rocket: ['stun', 0.7], a_laser: ['slow', 2] },
+    'paths:pain_human': { h_soul: ['stun', 1.4], h_field: ['slow', 2.5] },
+    'paths:pain_animal': { n_rhino: ['stun', 0.8], n_stampede: ['slow', 2] },
+    'paths:pain_preta': { p_drain: ['root', 1.2], p_field: ['slow', 2.5] },
+    'paths:pain_naraka': { k_tongue: ['root', 1.3], k_judge: ['stun', 1] },
+    'duel:hanzo': { kusa: ['root', 1.2], gas: ['slow', 2.5], storm: ['slow', 2.5] },
+    'duel:guy': { entry: ['stun', 0.8], elephant: ['stun', 0.9] },
+    'duel:lee': { lotus: ['stun', 1], hurricane: ['stun', 0.7] },
+    'rookie:sakura': { heel: ['stun', 1], katsuyu: ['slow', 2.5] },
+    'rookie:hinata': { palms: ['stun', 1], jab: ['slow', 2] },
+    'rookie:neji': { palms: ['stun', 1], hyakuni: ['stun', 1.3] },
+    'rookie:shikamaru': { kage: ['stun', 1.4], kubi: ['stun', 1], nui: ['root', 1.5], mass: ['stun', 1.5] },
+    'konoha11:choji': { tank: ['stun', 0.8], harite: ['stun', 0.9] },
+    'konoha11:ino': { mind: ['stun', 1.5], disturb: ['slow', 2.5] },
+    'konoha11:kiba': { gatsuga: ['stun', 0.7], mark: ['slow', 2] },
+    'konoha11:shino': { drain: ['slow', 2.5], sphere: ['root', 1.5] }, 'konoha11:tenten': { chain: ['root', 1.3] },
+    'jonin:yamato': { cage: ['root', 1.6], house: ['stun', 1.2] }, 'jonin:sai': { snakes: ['root', 1.4] },
+    'jonin:asuma': { ash: ['slow', 2.5] }, 'jonin:kurenai': { tree: ['stun', 1.5], vines: ['root', 1.5] },
+    'sunakiri:kankuro': { kuroari: ['stun', 1.3], poison: ['slow', 2.5], maiden: ['root', 1.5] },
+    'sunakiri:temari': { whirl: ['stun', 0.8], dust: ['slow', 2.5] },
+    'sunakiri:zabuza': { prison: ['stun', 1.4], mist: ['slow', 2] },
+    'sunakiri:haku': { mirrors: ['root', 1.5], spikes: ['root', 1.2], swallow: ['slow', 2] },
+    'sound:kimimaro': { sawarabi: ['root', 1.5] }, 'sound:sakon': { ukon: ['stun', 0.9] },
+    'sound:tayuya': { mateki: ['stun', 1.3], ring: ['root', 1.4], fantasia: ['stun', 1.5] },
+    'sound:kidomaru': { bind: ['root', 1.6], net: ['root', 1.5], bow: ['stun', 0.8] },
+    'sound:jirobo': { dome: ['root', 1.6], split: ['stun', 0.8] }, 'taka:suigetsu': { shark: ['slow', 2] },
+    'taka:jugo': { hammer: ['stun', 0.9] },
+    'taka:karin': { chain: ['root', 1.4], cage: ['stun', 1.3], ult: ['root', 1.5] },
+    'taka:mifune': { iai: ['stun', 0.7], counter: ['stun', 0.9] },
+    'jinchu:yugito': { pounce: ['stun', 0.8], ring: ['slow', 2] },
+    'jinchu:roshi': { melt: ['slow', 2.5], stream: ['slow', 2] },
+    'jinchu:han': { kicks: ['stun', 0.8], cloud: ['slow', 2.5] },
+    'jinchu:utakata': { prison: ['stun', 1.4], acid: ['slow', 2] },
+    'jinchu:fu': { powder: ['stun', 1.2], gust: ['slow', 2] }, 'otsutsuki:momoshiki': { fist: ['stun', 0.9] },
+    'otsutsuki:kinshiki': { dash: ['stun', 0.8] }, 'otsutsuki:isshiki': { cubes: ['root', 1.5], rods: ['root', 1.2] },
+    'otsutsuki:kaguya': { portal: ['stun', 1], shift: ['slow', 2.5] }, 'rikudo:hagoromo': { chibaku: ['stun', 1.4] },
+    'rikudo:hamura': { sixtyfour: ['stun', 1.2], kuheki: ['stun', 0.7] },
+    'rikudo:ashura': { roots: ['root', 1.5], slam: ['stun', 0.8] },
+    'boruto:boruto': { vanish: ['stun', 0.7], gale: ['slow', 2] }, 'boruto:sarada': { heel: ['stun', 1] },
+    'boruto:mitsuki': { snakes: ['root', 1.4], lsnake: ['stun', 0.8] },
+    'boruto:kawaki': { spikes: ['root', 1.2], cubes: ['root', 1.4] },
+    'kara:jigen': { cubes: ['root', 1.5], dash: ['stun', 0.8] }, 'kara:code': { grime: ['root', 1.4] },
+    'kara:kashin': { toad: ['stun', 1] }, 'kara:urashiki': { hook: ['root', 1.3], rewind: ['stun', 1] },
+    'kara:toneri': { wheel: ['stun', 1], puppets: ['slow', 2] },
+    'kyubi:kurama': { roar: ['stun', 0.8], arms: ['root', 1.3] },
+    'naruto:naruto': { odama: ['stun', 0.8], shuriken: ['slow', 2] } };
+  const CC = { window: 2.6, giant: .6, immune: 1.2, slow: .55, naruto: { chidori: ['stun', .6], shuriken: ['slow', 2] } };
+  const CC_STYLE = { stun: ['CHOÁNG', '#ffd23a'], root: ['TRÓI', '#c58bff'], slow: ['CHẬM', '#7fd0ff'] };
+  let ccHit = null, heroCc = null;
+  const ccSpeed = u => u.holdTimer > 0 ? 0 : u.slowTimer > 0 ? CC.slow : 1;
+  const ccLocked = u => !!u && (u.stunTimer > 0 || u.holdTimer > 0);
+  // The module state that holds the move a boss is casting (st.move), found once per unit.
+  const castStates = new WeakMap();
+  function castState(z) {
+    let st = castStates.get(z);
+    if (st && z[st]) return z[st];
+    for (const k in z) { const v = z[k]; if (v && typeof v === 'object' && typeof v.move === 'string' && Array.isArray(v.ev)) { castStates.set(z, k); return v; } }
+    return null;
+  }
+  // A boss starting one of its control moves arms its hits for CC.window seconds.
+  function trackCcMove(z) {
+    const st = z.type === 'boss' ? castState(z) : null, mv = st ? st.move : '';
+    if (mv && mv !== z.ccMove) {
+      const def = TEAM_CC[(z.bossFaction || z.type) + ':' + z.bossId]?.[mv];
+      if (def) { z.ccKind = def[0]; z.ccDur = def[1]; z.ccLeft = CC.window; }
+    }
+    z.ccMove = mv || '';
+  }
+  function applyCc(t, kind, dur) {
+    if (!team.active || !t || (t === me ? !heroTargetable() : !(t.health > 0))) return;
+    if (t !== me && hugeUnit(t)) dur *= CC.giant;
+    if (kind === 'slow') { if (!(t.slowTimer > .3)) popCc(t, kind); t.slowTimer = Math.max(t.slowTimer || 0, dur); return; }
+    if (t.ccImmune > 0 || ccLocked(t)) return;
+    if (kind === 'stun') { t.stunTimer = dur; interruptCast(t); }
+    else t.holdTimer = dur;
+    t.ccImmune = dur + CC.immune;
+    t.shun = null;
+    popCc(t, kind);
+  }
+  function popCc(t, kind) {
+    const [txt, color] = CC_STYLE[kind];
+    dmgNums.push({ x: t.x, y: t.y - LIFT - Math.min(t.r || 14, 70) - 78, v: 1, age: 0, hitAt: 0, life: 1.1, pop: 1, kind: 'cc', drift: 0, txt, color });
+    if (dmgNums.length > 70) dmgNums.shift();
+  }
+  // A stun cuts off the jutsu being cast: the boss module gets the same call it gets when the boss falls
+  // (which drops its windup, queued blows and current move), with health put straight back.
+  function interruptCast(t, dt = 0) {
+    if (t === me) { cancelCharge(); cancelPurpleChidoriCharge(); me.castPose = 0; return; }
+    t.skillWindup = 0; t.skillKind = ''; t.dashTimer = 0; t.manualBusy = false; t.manualCast = null; t.manualPending = null;
+    if (t.type === 'beast') { t.beastWindup = 0; return; }
+    const M = bossModuleOf(t);
+    if (!M || typeof M.update !== 'function') return;
+    const h = t.health;
+    try { t.health = 0; M.update(t, dt, giantApi(t)); } finally { t.health = h; }
+    t.bossWindup = t.kageWindup = t.akatsukiWindup = t.otsuWindup = t.madaraWindup = 0; t.kageDash = 0;
+  }
+  function tickCc(u, dt) {
+    if (u.stunTimer > 0) u.stunTimer = Math.max(0, u.stunTimer - dt);
+    if (u.holdTimer > 0) u.holdTimer = Math.max(0, u.holdTimer - dt);
+    if (u.slowTimer > 0) u.slowTimer = Math.max(0, u.slowTimer - dt);
+    if (u.ccImmune > 0) u.ccImmune = Math.max(0, u.ccImmune - dt);
+  }
+  // A stunned unit stands still; its module only keeps its effects ageing (and drops any new cast).
+  function stunnedUnit(z, dt) {
+    z.hitFlash = Math.max(0, (z.hitFlash || 0) - dt);
+    z.attackTimer -= dt; z.manualMoving = false;
+    if (z.type !== 'beast') interruptCast(z, dt); else z.beastWindup = 0;
+  }
+  // Stars over a stunned head, shadow bonds round rooted feet, frosty rings under a slowed one.
+  function drawCcMarks() {
+    if (!team.active) return;
+    ctx.save();
+    for (let i = -1; i < zombies.length; i++) {
+      const u = i < 0 ? (heroTargetable() ? me : null) : zombies[i];
+      if (!u || !(u.health > 0) || (i >= 0 && u.team === undefined)) continue;
+      if (!(u.stunTimer > 0 || u.holdTimer > 0 || u.slowTimer > 0)) continue;
+      const r = Math.min(u.r || 14, 70), feet = u.y + 6, head = u.y - LIFT - r - 40;
+      if (!visible(u.x - 90, head - 40, 180, feet - head + 60)) continue;
+      if (u.slowTimer > 0) {
+        ctx.globalAlpha = Math.min(1, u.slowTimer * 2) * .7;
+        ctx.strokeStyle = '#8fdcff'; ctx.lineWidth = 2.5;
+        for (let i = 0; i < 2; i++) { const k = (elapsed * .8 + i * .5) % 1; ctx.globalAlpha = (1 - k) * .7; ctx.beginPath(); ctx.ellipse(u.x, feet, (r + 10) * (.6 + k * .7), (r + 10) * (.22 + k * .25), 0, 0, Math.PI * 2); ctx.stroke(); }
+      }
+      if (u.holdTimer > 0) {
+        ctx.globalAlpha = Math.min(1, u.holdTimer * 3);
+        ctx.fillStyle = 'rgba(70,30,110,.45)'; ctx.beginPath(); ctx.ellipse(u.x, feet, r + 16, (r + 16) * .38, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#b07cff'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        for (let i = 0; i < 6; i++) {
+          const a = i / 6 * Math.PI * 2 + elapsed * .6, bx = u.x + Math.cos(a) * (r + 14), by = feet + Math.sin(a) * (r + 14) * .38;
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo((bx + u.x) / 2, by - 26, u.x + Math.cos(a) * r * .4, u.y - r * .5); ctx.stroke();
+        }
+      }
+      if (u.stunTimer > 0) {
+        ctx.globalAlpha = Math.min(1, u.stunTimer * 3);
+        ctx.strokeStyle = 'rgba(255,220,90,.75)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(u.x, head, 24, 8, 0, 0, Math.PI * 2); ctx.stroke();
+        for (let i = 0; i < 3; i++) {
+          const a = elapsed * 5 + i * Math.PI * 2 / 3, sx = u.x + Math.cos(a) * 24, sy = head + Math.sin(a) * 8;
+          ctx.fillStyle = Math.sin(a) > 0 ? '#ffe36a' : '#ffb52e';
+          ctx.beginPath();
+          for (let p = 0; p < 10; p++) { const rr = p % 2 ? 3 : 7.5, aa = p * Math.PI / 5 - Math.PI / 2 + elapsed * 3; ctx[p ? 'lineTo' : 'moveTo'](sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); }
+          ctx.closePath(); ctx.fill();
+        }
+      }
+      const kind = u.stunTimer > 0 ? 'stun' : u.holdTimer > 0 ? 'root' : 'slow', left = u.stunTimer || u.holdTimer || u.slowTimer;
+      ctx.globalAlpha = 1; ctx.font = '900 11px "Trebuchet MS", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3; ctx.strokeStyle = '#120a04'; ctx.fillStyle = CC_STYLE[kind][1];
+      const label = CC_STYLE[kind][0] + ' ' + left.toFixed(1);
+      ctx.strokeText(label, u.x, head - 16); ctx.fillText(label, u.x, head - 16);
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  const teamTune = z => TEAM_TUNE[(z.bossFaction || z.type) + ':' + (z.bossId || z.beastId)] || [1, 1];
+  const TEAM_UNIT_INVULN = .38, TEAM_MOVE_CD = 1.5, TEAM_ULT_CD = 12, TEAM_COMBO_GAP = .25;
   const team = { active: false, over: false, teams: [], heroTeam: -1, ctrl: null, alive: [], checkTimer: 0, startedAt: 0,
     setup: null, heroAI: { foe: null, seek: 0, rasengan: 1, shuriken: 2.5, fire: 1.5, clones: 4 }, enemiesAt: -1, enemies: [],
     spectate: false, follow: false, cam: { x: 0, y: 0, angle: 0 }, hot: null, hotTimer: 0, drag: null };
@@ -471,6 +711,8 @@
     // In co-op the match keeps running behind the pause menu and big map, without input.
     const input = !paused && !largeMap;
     if (player.leap) { updateLeap(dt); return; }
+    if (team.active) tickCc(player, dt);
+    if (player.stunTimer > 0) { player.speed = 0; player.shun = null; return; }
     if (player.shun) updateDash(player, dt);
     // Team battle: while the user drives another unit, a simple AI fights for Naruto.
     if (team.active && team.ctrl !== me) { updateHeroAI(dt); return; }
@@ -478,7 +720,7 @@
     let dy = input ? (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) : 0;
     const len = Math.hypot(dx, dy) || 1;
     // Team battle: Shift is the dash (teamDash), and everyone runs faster instead.
-    const sp = (!team.active && (keys.ShiftLeft || keys.ShiftRight) ? 265 : 185) * teamSpeed(player) * (player.nineTails ? 1.7 : 1) * (player.gates ? GATES_SPEED : 1) * (player.sixPaths ? SIXPATHS_SPEED : 1);
+    const sp = (!team.active && (keys.ShiftLeft || keys.ShiftRight) ? 265 : 185) * teamSpeed(player) * formSpeed(player) * (team.active ? ccSpeed(player) : 1);
     moveCircle(player, dx / len * sp * dt, dy / len * sp * dt);
     player.speed = (dx || dy) ? sp : 0;
     if (player.gates && player.speed > 0) {
@@ -952,10 +1194,14 @@
     else burst(player.x + Math.cos(player.angle) * 105, player.y + Math.sin(player.angle) * 105, weapon.color, 5);
   }
 
+  const TEAM_NO_SUMMON = new Set(['KeyC', 'KeyV', 'KeyB', 'KeyH', 'KeyZ']);
   function activateSkill(code) {
     const skill = SKILLS[code];
     if (!skill) return false;
     if (code === 'KeyE' && team.active) { showToast('ĐẤU ĐỘI: KHÔNG DÙNG ẢNH PHÂN THÂN (E)', 1.3); return false; }
+    // A summoned Sasuke, Might Guy, Hokage squad, Ten-Tails or 100 Kurama clones would each out-damage a
+    // whole character, so team battle keeps them off.
+    if (team.active && TEAM_NO_SUMMON.has(code)) { showToast('ĐẤU ĐỘI: KHÔNG DÙNG TRIỆU HỒI (C · V · B · H · Z)', 1.3); return false; }
     if (code === 'KeyG' && !player.nineTails) { showToast('BẬT BARYON MODE BẰNG PHÍM T ĐỂ DÙNG VĨ THÚ NGỌC', 1.3); return false; }
     player.angle = Math.atan2(mouse.y + camera.y - player.y, mouse.x + camera.x - player.x);
     let cast = false;
@@ -1032,8 +1278,14 @@
   }
 
   // Baryon (×100), the Eight Gates (×30), the Rinnegan (×20) and Six Paths (×50) each multiply max health; current health keeps its ratio.
+  const susanooGuard = () => team.active ? TEAM_BAL.guard : SUSANOO_GUARD;
+  // Naruto's damage in team battle: his base kit, a form, or a summon all land near everyone else's DPS.
+  function heroDamageScale() {
+    const h = TEAM_BAL.hero;
+    return h.dmg * (me.nineTails ? h.baryon : me.sixPaths ? h.sixPaths : me.gates ? h.gates : me.susanoo ? h.susanoo : me.rinnegan ? h.rinnegan : 1);
+  }
   function rescaleMaxHealth() {
-    const max = 100 * (team.active ? TEAM_HERO_HP : 1) * (player.nineTails ? 100 : 1) * (player.gates ? GATES_HEALTH : 1) * (player.rinnegan ? RINNEGAN_HEALTH : 1) * (player.sixPaths ? SIXPATHS_HEALTH : 1) * (player.susanoo ? SUSANOO_HEALTH : 1);
+    const max = team.active ? Math.round(TEAM_BAL.hp * TEAM_BAL.hero.hp) : 100 * (player.nineTails ? 100 : 1) * (player.gates ? GATES_HEALTH : 1) * (player.rinnegan ? RINNEGAN_HEALTH : 1) * (player.sixPaths ? SIXPATHS_HEALTH : 1) * (player.susanoo ? SUSANOO_HEALTH : 1);
     player.health = Math.min(max, player.health * max / (player.maxHealth || 100));
     player.maxHealth = max;
   }
@@ -2033,8 +2285,10 @@
     addSkillEffect('explosions', { x: player.x, y: player.y, radius: 60, life: .34, maxLife: .34, kind: 'lightning' });
     const cx = (sx + player.x) / 2, cy = (sy + player.y) / 2;
     forEachEnemyNear(cx, cy, Math.hypot(player.x - sx, player.y - sy) / 2 + 37, z => {
-      if (z.health > 0 && segmentHitsCircle(sx, sy, player.x, player.y, z, z.r + 37))
+      if (z.health > 0 && segmentHitsCircle(sx, sy, player.x, player.y, z, z.r + 37)) {
         hurtZombie(z, 120, a);
+        if (team.active && z.team !== curTeam && !z.netProxy) applyCc(z, ...CC.naruto.chidori);
+      }
     });
     burst(player.x, player.y, '#9cf5ff', 17);
     shake = Math.max(shake, 5);
@@ -2160,7 +2414,8 @@
           }
         });
       if (hit) {
-        explodeRasenShuriken(hitTerrain ? ox : shuriken.x, hitTerrain ? oy : shuriken.y, shuriken.charge);
+        if (team.active) heroCc = CC.naruto.shuriken;
+        try { explodeRasenShuriken(hitTerrain ? ox : shuriken.x, hitTerrain ? oy : shuriken.y, shuriken.charge); } finally { heroCc = null; }
         skillState.rasenShurikens.splice(i, 1);
       }
     }
@@ -2280,6 +2535,12 @@
     if (team.active && choice && choice.team !== undefined) {
       // A team unit: hits from damagePlayer get the hero's short invulnerability window.
       z.team = choice.team; z.invuln = 0; z.roster = !!choice.roster; z.manual = false; z.manualCast = null; z.manualBusy = false;
+      if (type === 'boss' || type === 'beast') {
+        const t = teamTune(z);
+        z.maxHealth = z.health = Math.round(TEAM_BAL.hp * t[1]);
+        z.damage = TEAM_BAL.dmg * t[0];
+        if (member?.armor) z.teamArmor = 1 / member.armor;
+      }
       z.angle = rand(0, Math.PI * 2);
       zombies.push(z);
       if (z.roster) team.teams[z.team]?.units.push(z);
@@ -2477,7 +2738,7 @@
     const shot = { x: z.x + Math.cos(angle) * (z.r + 5), y: z.y + Math.sin(angle) * (z.r + 5),
       vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life,
       friendly: false, damage, kind, color, sourceBoss: isGiant(z) };
-    if (team.active) shot.team = z.team;
+    if (team.active) { shot.team = z.team; if (z.ccLeft > 0) shot.cc = [z.ccKind, z.ccDur]; }
     bullets.push(shot);
     return shot;
   }
@@ -2535,7 +2796,7 @@
     try {
       updateGruntJutsu(dt);
       for (let i = zombies.length - 1; i >= 0; i--) updateZombie(zombies[i], i, dt);
-    } finally { player = me; enemyAction = false; curTeam = restTeam(); }
+    } finally { player = me; enemyAction = false; curTeam = restTeam(); ccHit = null; }
   }
 
   // A Kage jutsu landing on a spot: hits every teammate (and clone) inside the radius.
@@ -2771,7 +3032,11 @@
         // Team battle: fight the nearest unit of another team (or Naruto); the driven unit aims at the cursor.
         curTeam = z.team;
         if (z.invuln > 0) z.invuln -= dt;
+        tickCc(z, dt);
+        if (z.ccLeft > 0) z.ccLeft = Math.max(0, z.ccLeft - dt);
         player = z.manual ? cursorPseudo(z) : unitFoe(z) || idlePseudo(z);
+        if (z.stunTimer > 0) { stunnedUnit(z, dt); return; }
+        ccHit = z.ccLeft > 0 ? [z.ccKind, z.ccDur] : null;
         if (!z.manual && !aiDodge(z)) aiDash(z, player, dist(z, player));
       } else {
         if (!targetList.length) return;
@@ -2787,6 +3052,7 @@
       z.attackTimer -= dt; z.spitTimer -= dt; z.chargeTimer -= dt;
       z.hitFlash = Math.max(0, z.hitFlash - dt);
       if (customBoss) bossModule.update(z, dt, giantApi(z));
+      if (team.active && z.type === 'boss') { trackCcMove(z); ccHit = z.ccLeft > 0 ? [z.ccKind, z.ccDur] : null; }
       if (z.type === 'beast') window.TailedBeasts.update(z, dt, giantApi(z));
       if (z.manualPending != null) manualCastCheck(z);
 
@@ -2874,7 +3140,8 @@
       if (z.beastWindup > 0) speed *= .15;
       if (z.beastDashTimer > 0) speed = 0;
       const dashing = z.dashTimer > 0;
-      if (z.speedScale) speed *= z.speedScale;
+      if (z.speedScale) speed *= unitSpeedScale(z.speedScale);
+      if (team.active) speed *= ccSpeed(z);
       if (dashing) { speed *= 3.3; z.dashTimer = Math.max(0, z.dashTimer - dt); }
       const approach = z.type !== 'spitter' || d > 260;
       const retreat = z.type === 'spitter' && d < 170;
@@ -2963,6 +3230,7 @@
 
   function hurtZombie(z, damage, impactAngle = 0) {
     if (z.health <= 0) return;
+    if (heroCc && team.active && z.team !== curTeam && !z.netProxy) applyCc(z, heroCc[0], heroCc[1]);
     if (team.active) { if (z.team === curTeam) return; z.lastTeam = curTeam; if (damage > z.maxHealth * .06) z.dodge = true; }
     else if (isGiant(z) && damage > z.maxHealth * .04) z.dodge = true;
     if (player.nineTails) damage *= BARYON_DAMAGE_MULTIPLIER;
@@ -3010,6 +3278,24 @@
   // each one this compares health frame to frame and shows what came back. A max-health change (entering
   // or leaving a mode rescales health) and a revive from 0 only move the baseline. Co-op proxies compare
   // the host's value, not the guest's own predicted hits.
+  // Team battle: heals (self-heal jutsu, regeneration, a medic healing allies, guards that refund damage)
+  // keep TEAM_BAL.heal of what they give, from a pool of TEAM_BAL.healCap of max health that refills slowly.
+  const healGate = new WeakMap();
+  function limitTeamHeals(dt) {
+    if (!team.active || net.role === 'client') return;
+    const B = TEAM_BAL, gate = t => {
+      const m = t.maxHealth || 1, g = healGate.get(t);
+      if (!g || g.m !== m) { healGate.set(t, { h: t.health, m, pool: m * B.healCap }); return; }
+      g.pool = Math.min(m * B.healCap, g.pool + m * B.healRefill * dt);
+      if (t.health > g.h && g.h > 0) {
+        const keep = Math.min((t.health - g.h) * B.heal, g.pool);
+        g.pool -= keep; t.health = g.h + keep;
+      }
+      g.h = t.health;
+    };
+    if (heroOnField()) gate(me);
+    for (const z of zombies) if (z.health > 0) gate(z);
+  }
   function scanHeals() {
     const check = t => {
       const h = t.netProxy ? t.hostHealth : t.health, m = t.maxHealth || 100;
@@ -3038,10 +3324,10 @@
       if (!visible(x - 60, y - 30, 120, 60)) continue;
       const size = (11 + Math.min(17, Math.log10(n.v + 1) * 5.2)) * (n.heavy ? 1.15 : 1) * (1 + n.pop * .45);
       const fade = clamp((n.life - n.age) / .3, 0, 1);
-      const fill = n.kind === 'heal' ? '#5dff7a' : n.kind === 'hurt' ? '#ff4a4a' : n.heavy ? (n.v >= 600 ? '#ff8a1f' : '#ffd23a') : '#ffffff';
+      const fill = n.color ? n.color : n.kind === 'heal' ? '#5dff7a' : n.kind === 'hurt' ? '#ff4a4a' : n.heavy ? (n.v >= 600 ? '#ff8a1f' : '#ffd23a') : '#ffffff';
       ctx.globalAlpha = fade;
       ctx.font = `900 ${size.toFixed(1)}px "Trebuchet MS", system-ui, sans-serif`;
-      const txt = (n.kind === 'hurt' ? '-' : n.kind === 'heal' ? '+' : '') + fmtDamage(n.v);
+      const txt = n.txt || (n.kind === 'hurt' ? '-' : n.kind === 'heal' ? '+' : '') + fmtDamage(n.v);
       ctx.lineWidth = Math.max(3, size * .22); ctx.strokeStyle = n.kind === 'hurt' ? '#2a0606' : n.kind === 'heal' ? '#062a10' : '#150d06';
       ctx.strokeText(txt, x, y);
       ctx.fillStyle = fill; ctx.fillText(txt, x, y);
@@ -3050,7 +3336,11 @@
   }
 
   function applyHit(z, damage, impactAngle) {
-    if (z.armorScale) damage *= z.armorScale;
+    // Team battle: a guard or shield cuts at most 55% of a blow (short full-immunity tricks stay as they are).
+    if (z.armorScale) damage *= team.active && z.armorScale >= .01 ? Math.max(.45, z.armorScale) : z.armorScale;
+    if (z.teamArmor) damage *= z.teamArmor;
+    // Team battle: Naruto's side (him, his clones and summons) is scaled to the same damage per second.
+    if (team.active && !enemyAction) damage *= heroDamageScale();
     if (z.health > 0) popDamage(z, Math.min(damage, z.health));
     z.health = Math.max(0, z.health - damage);
     z.hitFlash = .12;
@@ -3069,7 +3359,7 @@
   function updateBullets(dt) {
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i], ox = b.x, oy = b.y;
-      enemyAction = !b.friendly;
+      enemyAction = !b.friendly; ccHit = b.friendly ? null : b.cc || null;
       if (team.active) curTeam = b.friendly ? (b.team ?? team.heroTeam) : b.team;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       const hitTerrain = blocked(b.x, b.y, 3) || blocked((ox + b.x) / 2, (oy + b.y) / 2, 3);
@@ -3146,11 +3436,12 @@
     if (player.remote) {
       // A teammate's ninja lives in their own browser: tell them how hard they were hit.
       netSend({ t: 'hurt', to: player.peerId, a: Math.round(amount) });
-      popDamage(player, amount * (player.susanoo ? SUSANOO_GUARD : 1), 'hurt');
+      popDamage(player, amount * (player.susanoo ? susanooGuard() : 1), 'hurt');
       bloodBurst(player.x, player.y, rand(0, Math.PI * 2), 5);
       return;
     }
-    if (player.susanoo) amount *= SUSANOO_GUARD;
+    if (player.susanoo) amount *= susanooGuard();
+    if (ccHit && team.active && player === me) applyCc(me, ccHit[0], ccHit[1]);
     popDamage(player, amount, 'hurt');
     if (player.armor > 0) { const used = Math.min(player.armor, amount); player.armor -= used; amount -= used; }
     player.health = Math.max(0, player.health - amount);
@@ -3164,6 +3455,7 @@
     if (!(z.health > 0) || z.team === curTeam || z.invuln > 0) return;
     z.invuln = TEAM_UNIT_INVULN;
     z.lastTeam = curTeam; z.lastHitBy = 0;
+    if (ccHit) applyCc(z, ccHit[0], ccHit[1]);
     if (amount > z.maxHealth * .06) z.dodge = true;
     applyHit(z, amount, rand(0, Math.PI * 2));
   }
@@ -3220,7 +3512,7 @@
     rebuildEnemyBuckets();
     updateSkills(dt);
     if (net.role !== 'client') updateWar(dt);
-    updateBullets(dt); updateParticles(dt); scanHeals();
+    updateBullets(dt); updateParticles(dt); limitTeamHeals(dt); scanHeals();
     if (coop()) updateNet(dt);
     if (team.active) { updateTeamMatch(dt); teamHeldDash(); }
     for (const b of destructionState.ruins) b.collapseLife = Math.max(0, b.collapseLife - dt);
@@ -3490,7 +3782,7 @@
     if (z.skillWindup > 0 || z.akatsukiWindup > 0 || z.otsuWindup > 0 || z.kageWindup > 0 || z.madaraWindup > 0 || z.bossWindup > 0) return 'seal';
     const swing = z.type === 'runner' ? .7 : z.type === 'boss' ? .82 : 1;
     if (z.attackTimer > swing - .2) return 'attack';
-    if (z.rootTimer > 0) return 'idle';
+    if (z.rootTimer > 0 || z.stunTimer > 0 || z.holdTimer > 0) return 'idle';
     if (z.manual && !z.manualMoving) return 'idle';
     return 'run';
   }
@@ -4150,6 +4442,7 @@
     // Hit sparks and blood spray burst from bodies, not from feet.
     for (const p of particles) { ctx.globalAlpha = clamp(p.life/p.max,0,1); ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y-LIFT*.7,p.size,p.size); } ctx.globalAlpha=1;
     drawWorldAmbient();
+    drawCcMarks();
     drawDamageNumbers();
     ctx.restore();
   }
@@ -5179,7 +5472,7 @@
   }
   // AI units dash to close in on a far foe, or sideways out of a jutsu's warning zone / after a heavy blow.
   function aiDash(z, foe, d) {
-    if (z.manual || z.shun || player.pseudo || !(elapsed >= (z.dashReady || 0))) return;
+    if (z.manual || z.shun || ccLocked(z) || player.pseudo || !(elapsed >= (z.dashReady || 0))) return;
     if (z.manualBusy || z.skillWindup > 0 || z.bossWindup > 0 || z.kageWindup > 0 || z.akatsukiWindup > 0 || z.otsuWindup > 0 || z.beastWindup > 0 || z.kageDash > 0 || z.dashTimer > 0) return;
     const toward = Math.atan2(foe.y - z.y, foe.x - z.x);
     let angle = null, len = 0;
@@ -5188,13 +5481,13 @@
       // Far away (another village): dash along the way the unit is steering around obstacles.
       const ai = z.ai, route = ai && elapsed - ai.routeAt < .2 ? ai.routeA : toward;
       angle = route + rand(-.1, .1); len = d - 130;
-      if (d > 900) { if (startDash(z, angle, len)) z.dashReady = elapsed + rand(.35, .7); z.dodge = false; return; }
+      if (d > 900) { if (startDash(z, angle, len)) z.dashReady = elapsed + TEAM_BAL.dashCd; z.dodge = false; return; }
     }
     // A foe rooted in its own jutsu is open: close in on it.
     else if (d > 170 && d < 620 && busyUnit(foe) && Math.random() < .5) { angle = toward + rand(-.2, .2); len = d - 90; }
     z.dodge = false;
     if (angle === null) return;
-    if (startDash(z, angle, len)) z.dashReady = elapsed + rand(1.6, 2.8);
+    if (startDash(z, angle, len)) z.dashReady = elapsed + TEAM_BAL.dashCd + rand(0, .5);
   }
   const busyUnit = t => !!t && (t.manualBusy || t.skillWindup > 0 || t.bossWindup > 0 || t.kageWindup > 0 || t.akatsukiWindup > 0 || t.otsuWindup > 0 || t.beastWindup > 0 || (t === me && (me.castPose > 0 || !!skillState.charge)));
   // Team battle AI, moving like a player instead of walking straight into its foe. Each unit has a
@@ -5220,7 +5513,7 @@
     // Badly hurt and losing the trade: back off (with a dash) toward the team, then come back.
     if (ai.mode !== 'retreat' && hp < .28 && foeHp > hp + .1 && now - ai.hurtAt > 9) {
       ai.mode = 'retreat'; ai.until = now + rand(1.6, 2.6); ai.hurtAt = now;
-      if (!z.shun && elapsed >= (z.dashReady || 0) && startDash(z, desired + Math.PI + rand(-.5, .5), 260)) z.dashReady = elapsed + rand(1.6, 2.6);
+      if (!z.shun && !ccLocked(z) && elapsed >= (z.dashReady || 0) && startDash(z, desired + Math.PI + rand(-.5, .5), 260)) z.dashReady = elapsed + TEAM_BAL.dashCd;
     }
     if (ai.mode !== 'fight' && now > ai.until) ai.mode = 'fight';
     if (ai.mode === 'fight' && z.attackTimer <= 0 && !busy && Math.random() < dt * (melee ? 3 : 1.2 * ai.aggr)) { ai.mode = 'dive'; ai.until = now + 1.4; }
@@ -5354,28 +5647,25 @@
     return null;
   }
   function aiDodge(z) {
-    if (z.manual || z.shun || z.health <= 0 || z.netProxy || !(elapsed >= (z.dodgeReady || 0))) return false;
+    if (z.manual || z.shun || ccLocked(z) || z.health <= 0 || z.netProxy || !(elapsed >= (z.dodgeReady || 0))) return false;
     if (z.manualBusy || z.skillWindup > 0 || z.bossWindup > 0 || z.kageWindup > 0 || z.akatsukiWindup > 0 || z.otsuWindup > 0 || z.beastWindup > 0 || z.kageDash > 0 || z.dashTimer > 0 || z.beastDashTimer > 0) return false;
-    if (!(elapsed >= (z.dodgeScan || 0))) return false;
+    if (!(elapsed >= (z.dodgeScan || 0)) || (team.active && !(elapsed >= (z.dashReady || 0)))) return false;
     z.dodgeScan = elapsed + .07;
     const a = dodgeAngle(z);
     if (a === null) return false;
     if (Math.random() > (team.active ? DODGE.teamChance : DODGE.chance)) { z.dodgeReady = elapsed + DODGE.miss; return false; }
     if (!startDash(z, a, hugeUnit(z) ? 200 : 240)) return false;
     z.dodgeReady = elapsed + (team.active ? rand(DODGE.teamCdMin, DODGE.teamCdMax) : rand(DODGE.cdMin, DODGE.cdMax));
-    z.dashReady = Math.max(z.dashReady || 0, elapsed + 1);
+    z.dashReady = Math.max(z.dashReady || 0, elapsed + (team.active ? TEAM_BAL.dashCd : 1));
     return true;
   }
-  // Right click: the driven unit (or Naruto) dashes toward the cursor. No cooldown: a click mid-dash turns it
-  // toward the cursor again, and holding the button chains dash after dash.
-  // A player's dash toward a point. No cooldown: a click mid-dash turns it toward the cursor again,
-  // and a held right button chains dash after dash.
+  // Right click: the driven unit (or Naruto) dashes toward the cursor, then waits TEAM_BAL.dashCd for the next.
   function dashToward(u, wx, wy) {
     if (!u || !(u === me ? heroTargetable() : u.health > 0) || (u !== me && u.kageDash > 0)) return;
-    u.shun = null;
-    // Only a fresh dash (not a chain) gives Naruto his short dodge invulnerability.
-    if (startDash(u, Math.atan2(wy - u.y, wx - u.x)) && u === me && !(elapsed - (team.lastDash || -9) < 1)) me.invuln = Math.max(me.invuln, .2);
-    if (u === me) team.lastDash = elapsed;
+    if (u.shun || ccLocked(u) || !(elapsed >= (u.dashReady || 0))) return;
+    if (!startDash(u, Math.atan2(wy - u.y, wx - u.x))) return;
+    u.dashReady = elapsed + TEAM_BAL.dashCd;
+    if (u === me) me.invuln = Math.max(me.invuln, .2);
   }
   function teamDash() {
     const u = team.ctrl;
@@ -5395,7 +5685,17 @@
   }
   // Team battle moves everyone faster than village defence (giants a little less).
   const hugeUnit = u => u.type === 'beast' || (u.r || 0) > 50;
-  const teamSpeed = u => !team.active ? 1 : u !== me && hugeUnit(u) ? 1.3 : 1.45;
+  const teamSpeed = u => {
+    if (!team.active) return 1;
+    if (u === me) return TEAM_BAL.run / 185;
+    if (u.type === 'boss' || u.type === 'beast') return (hugeUnit(u) ? TEAM_BAL.giantRun : TEAM_BAL.run) / (ZOMBIE_TYPES[u.type].speed * (u.type === 'boss' ? 1.35 : 1));
+    return hugeUnit(u) ? 1.3 : 1.45;
+  };
+  // A move set's own walking pace (.8–1.1) is ignored in team battle; slow-downs while casting and real
+  // speed buffs still count.
+  const unitSpeedScale = s => team.active && s >= .8 && s <= 1.12 ? 1 : s;
+  const formSpeed = p => team.active ? (p.nineTails || p.gates || p.sixPaths ? TEAM_BAL.formRun : 1)
+    : (p.nineTails ? 1.7 : 1) * (p.gates ? GATES_SPEED : 1) * (p.sixPaths ? SIXPATHS_SPEED : 1);
   // Co-op team battle: a unit driven by a guest reads that guest's last input packet instead of this keyboard.
   // k: W=1 A=2 S=4 D=8 · l/r: mouse buttons · x/y: the guest's cursor in the world.
   const coopTeam = () => team.active && coop();
@@ -5540,7 +5840,8 @@
     if (z.skillWindup > 0 || z.akatsukiWindup > 0 || z.otsuWindup > 0 || z.kageWindup > 0 || z.bossWindup > 0) speed *= .25;
     if (z.kageDash > 0 || z.beastDashTimer > 0) speed = 0;
     if (z.beastWindup > 0) speed *= .15;
-    if (z.speedScale) speed *= z.speedScale;
+    if (z.speedScale) speed *= unitSpeedScale(z.speedScale);
+    speed *= ccSpeed(z);
     const moving = !!(dx || dy) && speed > 0;
     if (moving) {
       const len = Math.hypot(dx, dy);
@@ -5549,7 +5850,7 @@
     }
     z.manualMoving = moving;
     z.manualAtk = (z.manualAtk || 0) - dt;
-    if (input && (rin ? rin.l : mouse.down) && z.manualAtk <= 0 && !z.manualBusy && !(z.skillWindup > 0)) comboStep(z, spec, damage);
+    if (input && (rin ? rin.l : mouse.down) && z.manualAtk <= 0 && !(z.stunTimer > 0) && !z.manualBusy && !(z.skillWindup > 0)) comboStep(z, spec, damage);
     if (z.gruntCast != null) {
       const i = z.gruntCast, sigs = gruntSigs(spec, z.type);
       z.gruntCast = null;
@@ -5589,8 +5890,8 @@
     me.angle = Math.atan2(dy, dx);
     const reach = (me.weapon === 'staff' || me.weapon === 'susano' ? 105 : 300) + (f.r || 12);
     if (d > reach * .75) {
-      if (d > 500 && !me.shun && elapsed >= (me.dashReady || 0) && startDash(me, me.angle, d - 140)) me.dashReady = elapsed + rand(2.5, 4);
-      const sp = (d > 650 ? 265 : 185) * teamSpeed(me) * (me.nineTails ? 1.7 : 1) * (me.gates ? GATES_SPEED : 1) * (me.sixPaths ? SIXPATHS_SPEED : 1);
+      if (d > 500 && !me.shun && !ccLocked(me) && elapsed >= (me.dashReady || 0) && startDash(me, me.angle, d - 140)) me.dashReady = elapsed + TEAM_BAL.dashCd + rand(0, .5);
+      const sp = (d > 650 ? 265 : 185) * teamSpeed(me) * formSpeed(me) * ccSpeed(me);
       const step = Math.min(d - reach * .6, sp * dt), ox = me.x, oy = me.y;
       moveCircle(me, dx / d * step, dy / d * step);
       me.speed = Math.hypot(me.x - ox, me.y - oy) / Math.max(dt, .001);
@@ -5918,8 +6219,8 @@
     setText(ui.eventText, (coop() ? 'J chọn đội · ' : '') + (!c
       ? 'Chỉ xem: WASD/mũi tên hoặc kéo chuột để di chuyển camera (Shift nhanh hơn) · F tự theo trận đánh · bấm bản đồ nhỏ / M để tới đó · Tab hoặc chuột phải vào ai để nhập vai · N thêm quân'
       : unit
-      ? 'WASD đi · chuột trái tung chiêu liên hoàn · chuột phải lướt (giữ để lướt liên tục) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân'
-      : 'Naruto (đủ phím) · chuột phải lướt (giữ để lướt liên tục) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân').replace(net.role === 'client' ? ' · N thêm quân' : '#', ''));
+      ? 'WASD đi · chuột trái tung chiêu liên hoàn · chuột phải lướt (hồi 3 giây) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân'
+      : 'Naruto (đủ phím) · chuột phải lướt (hồi 3 giây) · Tab/Shift+Tab đổi nhân vật · Backspace chỉ xem · N thêm quân').replace(net.role === 'client' ? ' · N thêm quân' : '#', ''));
     ui.bossBar.classList.remove('active');
     if (!window.TeamMode) return;
     window.TeamMode.board(team.teams.map(t => ({ name: t.name, color: t.color, alive: t.alive, kills: t.kills,
@@ -5928,7 +6229,7 @@
         dead: u === me ? me.teamOut : !(u.health > 0), ctrl: u === c })) })));
     if (!unit) { window.TeamMode.moves(null); return; }
     const list = unit.movesCache || (unit.movesCache = unitMoves(unit)), cd = unit.moveCd || [];
-    window.TeamMode.moves({ id: unit.id, name: unitName(unit), color, busy: !!unit.manualBusy, next: (unit.comboIdx || 0) % Math.max(1, list.length), dash: { left: 0, ratio: 0 },
+    window.TeamMode.moves({ id: unit.id, name: unitName(unit), color, busy: !!unit.manualBusy, next: (unit.comboIdx || 0) % Math.max(1, list.length), dash: { left: Math.max(0, (unit.dashReady || 0) - elapsed), ratio: Math.max(0, (unit.dashReady || 0) - elapsed) / TEAM_BAL.dashCd },
       moves: list.map((m, i) => { const left = Math.max(0, (cd[i] || 0) - elapsed); return { label: m.label, left, ratio: left / moveCooldown(unit, i) }; }) });
   }
 
@@ -6273,7 +6574,7 @@
       if(e.code==='KeyJ'&&coop()){if(!e.repeat)openTeamPicker();return;}
       if(e.code==='KeyF'&&!team.ctrl){if(!e.repeat){team.follow=!team.follow;team.hotTimer=0;showToast(team.follow?'CAMERA: TỰ THEO TRẬN ĐÁNH LỚN NHẤT':'CAMERA: TỰ DO',1.2);hudTimer=0;}return;}
     }
-    const canAct=running&&!paused&&!largeMap&&!(me.down>0)&&!teamUnit;
+    const canAct=running&&!paused&&!largeMap&&!(me.down>0)&&!teamUnit&&!(team.active&&me.stunTimer>0);
     if(!e.repeat&&canAct&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&SKILLS[e.code]) {
       if(e.code==='Space'||e.code==='KeyX'||e.code==='KeyQ'||e.code==='KeyG') beginCharge(e.code);
       else activateSkill(e.code);

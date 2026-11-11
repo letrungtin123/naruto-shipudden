@@ -177,14 +177,34 @@
   }
 
   // ------------------------------------------------------------ catalog grid (shared)
-  function buildCatalog(container, onPick) {
+  // How many grunts one click on a grunt card adds to a team (setup screen), shared by every grunt group.
+  const qty = { n: 10, inputs: [] };
+  function setQty(v) {
+    qty.n = Math.max(1, Math.min(200, Math.round(+v) || 1));
+    for (const i of qty.inputs) if (document.activeElement !== i) i.value = String(qty.n);
+  }
+  function qtyField() {
+    const box = el('div', 'team-qty');
+    const input = el('input');
+    input.type = 'number'; input.min = '1'; input.max = '200'; input.value = String(qty.n);
+    input.setAttribute('aria-label', 'Số lính mỗi lần bấm');
+    input.addEventListener('input', () => setQty(input.value));
+    input.addEventListener('change', () => { setQty(input.value); input.value = String(qty.n); });
+    qty.inputs.push(input);
+    box.append(el('span', '', 'SỐ LƯỢNG MỖI LẦN BẤM'), button('', '−', () => setQty(qty.n - (qty.n > 10 ? 5 : 1)), 'Bớt'), input,
+      button('', '+', () => setQty(qty.n + (qty.n >= 10 ? 5 : 1)), 'Thêm'));
+    return box;
+  }
+  function buildCatalog(container, onPick, withQty) {
     container.replaceChildren();
+    if (withQty) qty.inputs.length = 0;
     for (const group of loadCatalog()) {
       const section = el('section', 'team-cat-group');
       section.append(el('h3', '', group.title));
+      if (withQty && group.items.some(i => i.bulk)) section.append(qtyField());
       const grid = el('div', 'team-cat-grid');
       for (const item of group.items) {
-        const b = button('team-cat-item', '', () => onPick(item, b), `Thêm ${item.name}`);
+        const b = button('team-cat-item', '', () => onPick(item, b), withQty && item.bulk ? `Thêm lính ${item.name}` : `Thêm ${item.name}`);
         b.style.setProperty('--tone', item.tone || '#e8c070');
         b.append(thumb(item, 40), el('span', 'team-cat-name', item.name));
         b.title = item.name;
@@ -258,13 +278,15 @@
         if (!(mine >= 0)) { setStatus('Vào một đội trước (nút "TÔI VÀO ĐỘI NÀY").', true); return; }
         if (mine !== setup.sel) { select(mine); }
         if (setup.teams[mine].members.length >= host.maxPerTeam) { setStatus(`${setup.teams[mine].name} đã đủ ${host.maxPerTeam} nhân vật.`, true); return; }
-        guest.onEdit({ op: 'add', team: mine, key: item.key }); flash(b); return;
+        guest.onEdit({ op: 'add', team: mine, key: item.key, n: item.bulk ? qty.n : 1 }); flash(b); return;
       }
       if (t.members.length >= host.maxPerTeam) { setStatus(`${t.name} đã đủ ${host.maxPerTeam} nhân vật.`, true); flash(ui.list.children[setup.sel] || b); return; }
-      t.members.push(item);
+      const n = item.bulk ? Math.min(qty.n, host.maxPerTeam - t.members.length) : 1;
+      for (let k = 0; k < n; k++) t.members.push(item);
+      if (item.bulk) setStatus(`Đã thêm ${n} ${item.name} vào ${t.name}`);
       flash(b);
       save(); renderList();
-    });
+    }, true);
     cat.append(ui.catTitle, ui.cat);
     body.append(side, cat);
 
@@ -317,7 +339,24 @@
       head.append(badge, name, el('span', 'team-row-count', Number.isFinite(host.maxPerTeam) ? `${t.members.length}/${host.maxPerTeam}` : String(t.members.length)));
       const members = el('div', 'team-members');
       if (!t.members.length) members.append(el('span', 'team-empty', i === setup.sel ? 'Chọn nhân vật ở danh sách bên cạnh' : 'Chưa có nhân vật'));
+      const bulk = new Map();
+      t.members.forEach(m => { if (m.bulk) bulk.set(m.key, (bulk.get(m.key) || 0) + 1); });
+      const shown = new Set();
       t.members.forEach((m, j) => {
+        if (m.bulk) {
+          if (shown.has(m.key)) return;
+          shown.add(m.key);
+          const n = bulk.get(m.key);
+          const chip = button('team-chip team-chip-bulk', '', e => {
+            e.stopPropagation();
+            if (guest) { if (seats.get(guest.myId) === i) guest.onEdit({ op: 'removeAll', team: i, key: m.key }); else setStatus('Bạn chỉ sửa được đội của mình.', true); return; }
+            t.members = t.members.filter(x => x.key !== m.key); save(); renderList();
+          }, `Bỏ ${n} ${m.name} khỏi ${t.name}`);
+          chip.title = `${n} ${m.name} · bấm để bỏ cả nhóm`;
+          chip.append(thumb(m, 30, 'team-chip-thumb'), el('span', 'team-chip-name', m.name), el('span', 'team-chip-n', '×' + n), el('span', 'team-chip-x', '✕'));
+          members.append(chip);
+          return;
+        }
         const chip = button('team-chip', '', e => {
           e.stopPropagation();
           if (guest) { if (seats.get(guest.myId) === i) guest.onEdit({ op: 'remove', team: i, idx: j, key: m.key }); else setStatus('Bạn chỉ sửa được đội của mình.', true); return; }
@@ -433,7 +472,12 @@
     if (guest || !op || seats.get(id) !== op.team) return;
     const t = setup.teams[op.team];
     if (!t) return;
-    if (op.op === 'add') { const item = byKey.get(op.key); if (!item || t.members.length >= host.maxPerTeam) return; t.members.push(item); }
+    if (op.op === 'add') {
+      const item = byKey.get(op.key); if (!item || t.members.length >= host.maxPerTeam) return;
+      const n = item.bulk ? Math.max(1, Math.min(200, Math.round(+op.n) || 1, host.maxPerTeam - t.members.length)) : 1;
+      for (let k = 0; k < n; k++) t.members.push(item);
+    }
+    else if (op.op === 'removeAll') { const item = byKey.get(op.key); if (!item?.bulk) return; t.members = t.members.filter(m => m.key !== op.key); }
     else if (op.op === 'remove') { const j = t.members[op.idx]?.key === op.key ? op.idx : t.members.findIndex(m => m.key === op.key); if (j < 0) return; t.members.splice(j, 1); }
     else return;
     save();

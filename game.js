@@ -221,7 +221,7 @@
   // go, refilling 2% a second), everyone runs at the same speed and the dash has a 3 s cooldown.
   // TEAM_TUNE evens out each move set: [damage, health] factors found by measuring every character's damage
   // per second on a training dummy and how much damage it takes from the same attacker (dodges, guards, size).
-  const TEAM_BAL = { hp: 40000, dmg: 1245, run: 340, giantRun: 300, formRun: 1.15, dashCd: 3, guard: .7,
+  const TEAM_BAL = { hp: 40000, dmg: 1245, run: 340, giantRun: 300, formRun: 1.15, dashCd: 3, guard: .7, gruntDmg: 8,
     heal: .35, healCap: .12, healRefill: .02, hero: { dmg: 5.26, hp: 1, baryon: .34, gates: 1, rinnegan: .9, sixPaths: 1, susanoo: 1 } };
   const TEAM_TUNE = {
     'akatsuki:deidara': [0.82, 1.09], 'akatsuki:hidan': [0.97, 1.06], 'akatsuki:itachi': [0.89, 0.87],
@@ -2540,7 +2540,7 @@
         z.maxHealth = z.health = Math.round(TEAM_BAL.hp * t[1]);
         z.damage = TEAM_BAL.dmg * t[0];
         if (member?.armor) z.teamArmor = 1 / member.armor;
-      }
+      } else z.damage *= TEAM_BAL.gruntDmg; // grunts and village ninja hit 8x harder in team battle
       z.angle = rand(0, Math.PI * 2);
       zombies.push(z);
       if (z.roster) team.teams[z.team]?.units.push(z);
